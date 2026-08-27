@@ -337,20 +337,73 @@
   text-decoration: underline;
 }
 
-.auth-security-notice {
+/* Forgot Password & Reset Success Views */
+.auth-forgot-pane,
+.auth-reset-success-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.auth-reset-success-pane {
+  align-items: center;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.reset-success-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--text-tertiary, #737373);
-  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
-  padding-top: 10px;
-  margin-top: 2px;
+  margin-bottom: 4px;
 }
 
-.shield-icon {
-  color: #10b981;
+.auth-reset-success-pane h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  margin: 0;
+}
+
+[data-theme="light"] .auth-reset-success-pane h3 {
+  color: #171717;
+}
+
+.auth-reset-success-pane p {
+  font-size: 13px;
+  color: var(--text-secondary, #a3a3a3);
+  margin: 0 0 10px 0;
+  line-height: 1.4;
+}
+
+.auth-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-secondary, #a3a3a3);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.auth-back-btn:hover {
+  color: var(--text-primary, #ffffff);
+  background: var(--bg-surface-hover, rgba(255, 255, 255, 0.08));
+}
+
+[data-theme="light"] .auth-back-btn:hover {
+  color: #171717;
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .auth-spinner {
