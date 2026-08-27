@@ -1,0 +1,847 @@
+.chatgpt-canvas-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: calc(100vh - 52px);
+  width: 100%;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: var(--bg-app);
+}
+
+.chatgpt-messages-viewport {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 768px;
+  width: 100%;
+  padding: 24px 20px 170px 20px;
+  margin: 0 auto;
+  min-height: 100%;
+}
+
+/* ==========================================================================
+   4-PLANE SOLAR GYROSCOPIC SCENE: 0° EQUATORIAL, +45°, -45°, 90° POLAR
+   (DISTINCT RADII & COPRIME SPEEDS FOR RARE NATURAL SYZYGY ALIGNMENTS)
+   ========================================================================== */
+
+.chatgpt-hero-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin-top: 10vh;
+  gap: 16px;
+  width: 100%;
+}
+
+/* 3D Scene Viewport with Interactive 360° Cursor/Touch Control */
+.neural-3d-scene {
+  perspective: 1100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 170px;
+  height: 130px;
+  margin-bottom: 2px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.neural-3d-scene.is-dragging {
+  cursor: grabbing;
+}
+
+/* Interactive 3D Rotator Wrapper */
+.interactive-3d-rotator {
+  transform-style: preserve-3d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.08s ease-out;
+  pointer-events: none;
+}
+
+.neural-3d-scene.is-dragging .interactive-3d-rotator {
+  transition: none;
+}
+
+.neural-3d-floating-system {
+  transform-style: preserve-3d;
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: floatNeural3D 3.8s ease-in-out infinite alternate;
+}
+
+/* 3D Gyroscopic Rings */
+.gyro-3d-ring {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+/* 1. Horizontal Equatorial Ring (0°) - Compact, Smooth & Dotted */
+.gyro-equatorial {
+  width: 116px;
+  height: 116px;
+  border: 1.3px dotted rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.35));
+  transform: rotateZ(0deg) rotateX(68deg);
+}
+
+/* 2. +45° Tilted Ring from Right Side - Compact, Smooth & Dotted */
+.gyro-tilt-pos {
+  width: 116px;
+  height: 116px;
+  border: 1.3px dotted rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.35));
+  transform: rotateZ(45deg) rotateX(68deg);
+}
+
+/* 3. -45° Tilted Ring from Left Side - Compact, Smooth & Dotted */
+.gyro-tilt-neg {
+  width: 116px;
+  height: 116px;
+  border: 1.3px dotted rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.35));
+  transform: rotateZ(-45deg) rotateX(68deg);
+}
+
+/* 4. 90° Polar Ring Perpendicular to Equatorial Ring - Compact, Smooth & Dotted */
+.gyro-polar-90 {
+  width: 116px;
+  height: 116px;
+  border: 1.3px dotted rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.35));
+  transform: rotateZ(90deg) rotateX(68deg);
+}
+
+/* High-Contrast Light Mode Definition (All 4 Rings Crisp, Bold & Equally Visible) */
+[data-theme="light"] .gyro-equatorial,
+[data-theme="light"] .gyro-tilt-pos,
+[data-theme="light"] .gyro-tilt-neg,
+[data-theme="light"] .gyro-polar-90 {
+  border: 1.6px dotted rgba(0, 0, 0, 0.75) !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* Planet Revolver Containers - Sweeps 360° directly along the dotted ring perimeter */
+.planet-revolver {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.rev-eq    { animation: orbitRevolve 10s linear infinite; }
+.rev-pos   { animation: orbitRevolve 7.5s linear infinite; }
+.rev-neg   { animation: orbitRevolve 8.8s linear infinite reverse; }
+.rev-polar { animation: orbitRevolve 6.2s linear infinite; }
+
+/* Orbiting Planets Situated on Each Ring */
+.orbit-planet {
+  position: absolute;
+  top: -3.5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 1);
+  transform-style: preserve-3d;
+}
+
+[data-theme="light"] .orbit-planet {
+  background: #0a0a0a;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
+}
+
+/* Sub-Moon Orbit Circle (Revolving around each planet) */
+.sub-moon-orbit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 15px;
+  height: 15px;
+  margin-top: -7.5px;
+  margin-left: -7.5px;
+  border-radius: 50%;
+  border: 1px dotted rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+.moon-orbit-eq    { animation: spinSubMoon 2.5s linear infinite; }
+.moon-orbit-pos   { animation: spinSubMoon 1.9s linear infinite; }
+.moon-orbit-neg   { animation: spinSubMoon 2.2s linear infinite reverse; }
+.moon-orbit-polar { animation: spinSubMoon 1.6s linear infinite; }
+
+[data-theme="light"] .sub-moon-orbit {
+  border-color: rgba(0, 0, 0, 0.45);
+}
+
+/* Tiny Orbiting Sub-Moon Particle */
+.sub-moon {
+  position: absolute;
+  top: -1.5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 1);
+}
+
+[data-theme="light"] .sub-moon {
+  background: #0a0a0a;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.35);
+}
+
+/* Volumetric 3D Centroid Sphere with 3D Depth Sorting */
+.volumetric-3d-sphere {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateZ(0);
+  transform-style: preserve-3d;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #8c8c8c 0%, #4a4a4a 50%, #262626 100%);
+  box-shadow: 
+    0 10px 28px rgba(0, 0, 0, 0.55),
+    0 0 20px rgba(255, 255, 255, 0.12),
+    inset 0 2.5px 5px rgba(255, 255, 255, 0.65),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  pointer-events: none;
+}
+
+[data-theme="light"] .volumetric-3d-sphere {
+  background: radial-gradient(circle at 35% 30%, #b8b8be 0%, #7c7c84 50%, #4e4e56 100%);
+  box-shadow: 
+    0 10px 24px rgba(0, 0, 0, 0.2),
+    0 2px 6px rgba(0, 0, 0, 0.1),
+    inset 0 2.5px 5px rgba(255, 255, 255, 0.65),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.5);
+  color: #ffffff;
+}
+
+.sphere-brain-hologram {
+  color: #ffffff !important;
+  filter: none;
+  z-index: 10;
+  display: block;
+}
+
+[data-theme="light"] .sphere-brain-hologram {
+  color: #ffffff !important;
+  filter: none;
+}
+
+/* Realistic Ground Floor Shadow */
+.neural-3d-floor-shadow {
+  position: absolute;
+  bottom: 2px;
+  width: 80px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.3) 55%, transparent 75%);
+  filter: blur(4px);
+  animation: shadowFloorPulse 3.8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+/* Ground Floor Shadow in Light Mode */
+[data-theme="light"] .neural-3d-floor-shadow {
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0.12) 55%, transparent 75%);
+  filter: blur(3.5px);
+}
+
+@keyframes floatNeural3D {
+  0% {
+    transform: translateY(4px);
+  }
+  100% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Planetary 360° Circular Orbit Revolution around the Central Brain/Sun */
+@keyframes orbitRevolve {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Sub-Moon Orbital Rotation (Moons revolving around their parent planet) */
+@keyframes spinSubMoon {
+  0% { transform: rotateZ(0deg); }
+  100% { transform: rotateZ(360deg); }
+}
+
+@keyframes shadowFloorPulse {
+  0% {
+    transform: scale(1.15);
+    opacity: 0.85;
+    filter: blur(3px);
+  }
+  100% {
+    transform: scale(0.65);
+    opacity: 0.35;
+    filter: blur(6px);
+  }
+}
+
+/* Header */
+.chatgpt-hero-prompt {
+  font-family: var(--font-editorial, 'Newsreader', 'Lora', Georgia, serif);
+  font-size: 36px;
+  font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+/* AI Capability Badges */
+.hero-feature-pills {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.hero-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+
+[data-theme="light"] .hero-pill-badge {
+  background: #f4f4f4;
+  border-color: #e5e5e5;
+  color: #404040;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.hero-pill-badge:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+  border-color: var(--border-medium);
+  transform: translateY(-1px);
+}
+
+.badge-icon {
+  color: var(--text-primary);
+}
+
+/* Thinking Dot Indicator */
+.thinking-dot-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--text-primary);
+  animation: pulseDot 1.2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* ==========================================================================
+   CONVERSATION MESSAGES
+   ========================================================================== */
+
+.chatgpt-msg-row {
+  display: flex;
+  width: 100%;
+}
+
+.chatgpt-msg-row.user {
+  justify-content: flex-end;
+}
+
+.user-message-bubble {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-radius: var(--radius-xl);
+  padding: 10px 18px;
+  max-width: 75%;
+  font-size: 15px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.ai-message-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Source Chips */
+.sources-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.source-badge-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.source-badge-chip:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-medium);
+}
+
+.source-icon {
+  color: var(--text-muted);
+  display: flex;
+}
+
+.source-name {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.source-match {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+}
+
+/* Claude Signature Editorial Typography */
+.ai-markdown-body {
+  font-family: var(--font-editorial, 'Newsreader', 'Lora', Georgia, serif);
+  font-size: 16.5px;
+  line-height: 1.82;
+  color: var(--text-primary);
+  letter-spacing: 0.1px;
+}
+
+.ai-markdown-body p {
+  margin-bottom: 14px;
+}
+
+.ai-markdown-body p:last-child {
+  margin-bottom: 0;
+}
+
+.ai-markdown-body h3 {
+  font-family: var(--font-sans, 'Inter', sans-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 18px 0 8px 0;
+  letter-spacing: -0.2px;
+}
+
+.ai-markdown-body ul, .ai-markdown-body ol {
+  margin: 8px 0 16px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-markdown-body li {
+  color: var(--text-primary);
+}
+
+.ai-markdown-body strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ai-markdown-body code {
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+/* Actions */
+.ai-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.action-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-icon-btn:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* Thinking indicator */
+.chatgpt-thinking-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   BOTTOM CONSOLE & DYNAMIC SUGGESTION PILLS
+   ========================================================================== */
+
+.chatgpt-input-wrapper {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 768px;
+  width: 100%;
+  padding: 0 20px 14px 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: linear-gradient(180deg, transparent 0%, var(--bg-app) 30%);
+  z-index: 30;
+  pointer-events: none;
+}
+
+.chatgpt-input-wrapper > * {
+  pointer-events: auto;
+}
+
+/* Suggestion Pills Row above Input Bar */
+.prompt-starters-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.starter-pill-btn {
+  padding: 8px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.starter-pill-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+  border-color: var(--border-medium);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ChatGPT Input Bar */
+.chatgpt-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-floating);
+  transition: border-color 0.15s ease;
+}
+
+.chatgpt-input-bar:focus-within {
+  border-color: var(--border-focus);
+}
+
+.input-attach-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.input-attach-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.chatgpt-input-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 15px;
+  outline: none;
+  font-family: inherit;
+}
+
+.chatgpt-input-bar input::placeholder {
+  color: var(--text-muted);
+}
+
+.send-arrow-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-surface-hover);
+  border: none;
+  color: var(--text-muted);
+  cursor: not-allowed;
+  transition: all 0.15s ease;
+}
+
+.send-arrow-circle.active {
+  background: #ffffff;
+  color: #000000;
+  cursor: pointer;
+}
+
+[data-theme="light"] .send-arrow-circle.active {
+  background: #000000;
+  color: #ffffff;
+}
+
+.send-arrow-circle.active:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+
+.chatgpt-disclaimer {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* Source Drawer */
+.drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.drawer-card {
+  width: 100%;
+  max-width: 580px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-floating);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.drawer-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 12px;
+}
+
+.drawer-title-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drawer-title-box h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.drawer-loc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.drawer-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.drawer-close:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.drawer-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.drawer-passage {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  padding: 16px;
+  border-radius: var(--radius-md);
+}
+
+/* ==========================================================================
+   UNIVERSAL DEVICE RESPONSIVENESS (Mobile & Tablet)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .chatgpt-canvas-root {
+    height: calc(100vh - 50px);
+  }
+
+  .chatgpt-messages-viewport {
+    padding: 16px 12px 160px 12px;
+    gap: 16px;
+  }
+
+  .chatgpt-hero-empty {
+    margin-top: 8vh;
+    padding: 0 8px;
+  }
+
+  .chatgpt-hero-prompt {
+    font-size: 28px;
+  }
+
+  .prompt-starters-row {
+    flex-direction: column;
+    width: 100%;
+    gap: 6px;
+  }
+
+  .starter-pill-btn {
+    width: 100%;
+    text-align: left;
+    font-size: 12px;
+    padding: 7px 12px;
+  }
+
+  .user-message-bubble {
+    max-width: 88%;
+    font-size: 14px;
+    padding: 8px 14px;
+  }
+
+  .ai-markdown-body {
+    font-size: 15px;
+    line-height: 1.68;
+  }
+
+  .chatgpt-input-wrapper {
+    width: calc(100% - 20px);
+    bottom: 8px;
+    padding-bottom: 6px;
+  }
+
+  .chatgpt-input-bar {
+    padding: 6px 8px 6px 12px;
+  }
+
+  .drawer-card {
+    padding: 16px;
+    max-width: 92vw;
+  }
+}

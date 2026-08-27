@@ -1,0 +1,157 @@
+.security-settings-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 86px);
+  margin: 12px 16px 12px 0;
+  padding: 0 4px 16px 0;
+  gap: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.security-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+}
+
+.security-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.sec-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sec-card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sec-card-top h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sec-card-desc {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.sec-card-desc code {
+  color: var(--brand-primary);
+}
+
+.sec-status-line {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+/* Leases Table */
+.leases-table-card {
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.l-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.l-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.l-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+}
+
+.leases-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.leases-table th {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.leases-table td {
+  padding: 10px 14px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Vault Card */
+.vault-card {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vault-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vault-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+}
+
+.vault-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vault-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vault-field label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.vault-field input {
+  padding: 10px 14px;
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  outline: none;
+  border-radius: var(--radius-md);
+}
+
+.vault-field input:focus {
+  border-color: var(--brand-primary);
+}
