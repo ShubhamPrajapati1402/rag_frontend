@@ -4,10 +4,12 @@ import Sidebar from './components/Navigation/Sidebar';
 import ChatStudio from './components/Chat/ChatStudio';
 import IngestionHub from './components/Ingestion/IngestionHub';
 import CommandPalette from './components/CommandPalette/CommandPalette';
+import AuthModal from './components/Auth/AuthModal';
+import { ThemeType, DocumentItem, ChatSession, UserProfile } from './types';
 import './App.css';
 
-function getInitialTheme() {
-  const saved = localStorage.getItem('app-theme');
+function getInitialTheme(): ThemeType {
+  const saved = localStorage.getItem('app-theme') as ThemeType | null;
   if (saved === 'dark' || saved === 'light') {
     return saved;
   }
@@ -18,13 +20,17 @@ function getInitialTheme() {
 }
 
 function App() {
-  const [theme, setTheme] = useState(getInitialTheme);
-  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'documents'
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [theme, setTheme] = useState<ThemeType>(getInitialTheme);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const saved = localStorage.getItem('documind_auth');
+    return saved !== 'false'; // Default to authenticated for instant preview
+  });
+  const [activeTab, setActiveTab] = useState<'chat' | 'documents'>('chat');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   
   // Shared Live Document State across App, IngestionHub & ChatStudio
-  const [documents, setDocuments] = useState([
+  const [documents, setDocuments] = useState<DocumentItem[]>([
     {
       id: 'doc-1',
       name: 'Tesla_2025_Annual_Report_10K.pdf',
@@ -57,11 +63,11 @@ function App() {
     }
   ]);
 
-  const [chatSessions, setChatSessions] = useState([
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([
     { id: 'sess-1', title: 'Tesla FY2025 Revenue Analysis' },
     { id: 'sess-2', title: 'Cloud Infrastructure Spend' }
   ]);
-  const [currentSessionId, setCurrentSessionId] = useState('sess-1');
+  const [currentSessionId, setCurrentSessionId] = useState<string>('sess-1');
 
   // Apply theme attribute to html document
   useEffect(() => {
@@ -73,7 +79,7 @@ function App() {
   // Listen for system theme changes if no manual preference is stored
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleSystemThemeChange = (e) => {
+    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
       const saved = localStorage.getItem('app-theme');
       if (!saved) {
         setTheme(e.matches ? 'dark' : 'light');
@@ -85,7 +91,7 @@ function App() {
 
   // Global keyboard shortcuts (Ctrl+K for search, Ctrl+B for sidebar toggle)
   useEffect(() => {
-    const handleGlobalShortcuts = (e) => {
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen(prev => !prev);
@@ -101,15 +107,28 @@ function App() {
 
   const handleToggleTheme = () => {
     setTheme(prev => {
-      const next = prev === 'dark' ? 'light' : 'dark';
+      const next: ThemeType = prev === 'dark' ? 'light' : 'dark';
       localStorage.setItem('app-theme', next);
       return next;
     });
   };
 
+  const handleLogin = (user: UserProfile) => {
+    setIsAuthenticated(true);
+    localStorage.setItem('documind_auth', 'true');
+    if (user) {
+      localStorage.setItem('documind_user', JSON.stringify(user));
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.setItem('documind_auth', 'false');
+  };
+
   const handleNewSession = () => {
     const newId = `sess-${Date.now()}`;
-    const newSession = {
+    const newSession: ChatSession = {
       id: newId,
       title: 'New Conversation'
     };
@@ -118,9 +137,14 @@ function App() {
     setActiveTab('chat');
   };
 
-  const handleDeleteSession = (id) => {
+  const handleDeleteSession = (id: string) => {
     setChatSessions(prev => prev.filter(s => s.id !== id));
   };
+
+  // If user is logged out, display the Authentication / Login screen
+  if (!isAuthenticated) {
+    return <AuthModal onLogin={handleLogin} theme={theme} />;
+  }
 
   return (
     <div className="app-container-root">
@@ -128,7 +152,7 @@ function App() {
       <Sidebar 
         chatSessions={chatSessions}
         currentSessionId={currentSessionId}
-        onSelectSession={(id) => {
+        onSelectSession={(id: string) => {
           setCurrentSessionId(id);
           setActiveTab('chat');
         }}
@@ -141,6 +165,7 @@ function App() {
         docCount={documents.length}
         onToggleTheme={handleToggleTheme}
         theme={theme}
+        onLogout={handleLogout}
       />
 
       {/* Main Viewport */}
@@ -177,7 +202,7 @@ function App() {
       <CommandPalette 
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
-        onSelectSession={(id) => {
+        onSelectSession={(id: string) => {
           setCurrentSessionId(id);
           setActiveTab('chat');
         }}

@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
   ArrowUp, 
-  ArrowDown, 
   Copy, 
   Check, 
   ThumbsUp, 
@@ -16,30 +15,43 @@ import {
   Cpu,
   Zap
 } from 'lucide-react';
+import { DocumentItem, ChatMessage, SourceCitation } from '../../types';
 import './ChatStudio.css';
 
-export default function ChatStudio({ onNavigateToIngestion, docCount, documents = [], onOpenCommandPalette }) {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [copiedId, setCopiedId] = useState(null);
-  const [activeSource, setActiveSource] = useState(null);
-  const [streamingText, setStreamingText] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
+interface ChatStudioProps {
+  onNavigateToIngestion: () => void;
+  docCount: number;
+  documents?: DocumentItem[];
+  onOpenCommandPalette: () => void;
+}
+
+export default function ChatStudio({ 
+  onNavigateToIngestion, 
+  docCount, 
+  documents = [], 
+  onOpenCommandPalette 
+}: ChatStudioProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState<string>('');
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [copiedId, setCopiedId] = useState<number | string | null>(null);
+  const [activeSource, setActiveSource] = useState<SourceCitation | null>(null);
+  const [streamingText, setStreamingText] = useState<string>('');
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
 
   // 360° Interactive Cursor / Touch Rotation Physics
-  const [rotX, setRotX] = useState(0);
-  const [rotY, setRotY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0, rotX: 0, rotY: 0 });
+  const [rotX, setRotX] = useState<number>(0);
+  const [rotY, setRotY] = useState<number>(0);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const dragStartRef = useRef<{ x: number; y: number; rotX: number; rotY: number }>({ x: 0, y: 0, rotX: 0, rotY: 0 });
 
   // User input history
-  const [inputHistory, setInputHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const [tempDraft, setTempDraft] = useState('');
+  const [inputHistory, setInputHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  const [tempDraft, setTempDraft] = useState<string>('');
 
-  const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,7 +59,7 @@ export default function ChatStudio({ onNavigateToIngestion, docCount, documents 
 
   // Global Ctrl+K
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         onOpenCommandPalette();
@@ -58,17 +70,17 @@ export default function ChatStudio({ onNavigateToIngestion, docCount, documents 
   }, [onOpenCommandPalette]);
 
   // 360° Interactive Rotation Handlers (Mouse & Touch)
-  const handlePointerDown = (e) => {
+  const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDragging(true);
-    const clientX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+    const clientX = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
+    const clientY = 'clientY' in e ? e.clientY : e.touches?.[0]?.clientY ?? 0;
     dragStartRef.current = { x: clientX, y: clientY, rotX, rotY };
   };
 
-  const handlePointerMove = useCallback((e) => {
+  const handlePointerMove = useCallback((e: MouseEvent | TouchEvent) => {
     if (!isDragging) return;
-    const clientX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+    const clientX = 'clientX' in e ? e.clientX : (e as TouchEvent).touches?.[0]?.clientX ?? 0;
+    const clientY = 'clientY' in e ? e.clientY : (e as TouchEvent).touches?.[0]?.clientY ?? 0;
     const deltaX = clientX - dragStartRef.current.x;
     const deltaY = clientY - dragStartRef.current.y;
     
@@ -79,7 +91,7 @@ export default function ChatStudio({ onNavigateToIngestion, docCount, documents 
 
   useEffect(() => {
     const onUp = () => setIsDragging(false);
-    const onMove = (e) => {
+    const onMove = (e: MouseEvent | TouchEvent) => {
       if (isDragging) {
         handlePointerMove(e);
       }
@@ -119,7 +131,7 @@ export default function ChatStudio({ onNavigateToIngestion, docCount, documents 
     });
   }, [documents]);
 
-  const handleSend = (e, overridePrompt) => {
+  const handleSend = (e?: React.FormEvent | null, overridePrompt?: string) => {
     e?.preventDefault();
     const queryToSend = overridePrompt || input.trim();
     if (!queryToSend || isSearching || isStreaming) return;
@@ -128,7 +140,7 @@ export default function ChatStudio({ onNavigateToIngestion, docCount, documents 
     setHistoryIndex(-1);
     setTempDraft('');
 
-    const userMsg = {
+    const userMsg: ChatMessage = {
       id: Date.now(),
       type: 'user',
       content: queryToSend
@@ -161,7 +173,7 @@ export default function ChatStudio({ onNavigateToIngestion, docCount, documents 
           clearInterval(streamInterval);
           setIsStreaming(false);
 
-          const newAiMsg = {
+          const newAiMsg: ChatMessage = {
             id: Date.now() + 1,
             type: 'ai',
             content: fullResponse,
@@ -192,7 +204,7 @@ export default function ChatStudio({ onNavigateToIngestion, docCount, documents 
     }, 900);
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowUp') {
       if (inputHistory.length === 0) return;
       if (historyIndex === -1) {
@@ -217,7 +229,7 @@ export default function ChatStudio({ onNavigateToIngestion, docCount, documents 
     }
   };
 
-  const copyText = (text, id) => {
+  const copyText = (text: string, id: number | string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -228,7 +240,7 @@ export default function ChatStudio({ onNavigateToIngestion, docCount, documents 
       {/* Scrollable Conversation Flow */}
       <div className="chatgpt-messages-viewport">
         {messages.length === 0 ? (
-          /* Interactive 360° Symmetrical 4-Plane Gyroscopic System */
+          /* Symmetrical 4-Plane Gyroscopic Solar System */
           <div className="chatgpt-hero-empty anim-fade-in">
             {/* 3D Multi-Shell Solar Gyroscopic System with 360° Drag & Touch Control */}
             <div 

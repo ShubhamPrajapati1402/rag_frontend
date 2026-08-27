@@ -4,17 +4,32 @@ import {
   MessageSquare, 
   FolderOpen, 
   Plus, 
-  Sparkles, 
-  X,
   ArrowRight
 } from 'lucide-react';
+import { ChatSession } from '../../types';
 import './CommandPalette.css';
 
-export default function CommandPalette({ isOpen, onClose, onSelectSession, onNewSession, chatSessions, onOpenDocManager }) {
-  const [query, setQuery] = useState('');
+interface CommandPaletteProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectSession: (id: string) => void;
+  onNewSession: () => void;
+  chatSessions: ChatSession[];
+  onOpenDocManager: () => void;
+}
+
+export default function CommandPalette({ 
+  isOpen, 
+  onClose, 
+  onSelectSession, 
+  onNewSession, 
+  chatSessions, 
+  onOpenDocManager 
+}: CommandPaletteProps) {
+  const [query, setQuery] = useState<string>('');
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
         onClose();
       }
@@ -96,6 +111,16 @@ export default function CommandPalette({ isOpen, onClose, onSelectSession, onNew
                 <span className="cmd-jump-badge">Jump to chat</span>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="cmd-footer-bar">
+          <div className="cmd-nav-hint">
+            <span>Navigation:</span>
+            <kbd>↑</kbd>
+            <kbd>↓</kbd>
+            <span>Select:</span>
+            <kbd>↵</kbd>
           </div>
         </div>
       </div>

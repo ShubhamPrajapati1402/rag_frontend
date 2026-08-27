@@ -1,20 +1,38 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   SquarePen, 
-  PanelLeftClose, 
-  PanelLeftOpen, 
   FolderOpen, 
   Search, 
   Trash2, 
+  PanelLeftClose, 
+  PanelLeftOpen, 
+  Settings, 
+  LogOut, 
+  HelpCircle, 
+  Sun, 
+  Moon, 
   X,
-  Settings,
   Keyboard,
-  LogOut,
-  Sparkles,
-  ShieldCheck,
   Check
 } from 'lucide-react';
+import { ChatSession, ThemeType } from '../../types';
 import './Sidebar.css';
+
+interface SidebarProps {
+  chatSessions: ChatSession[];
+  currentSessionId: string;
+  onSelectSession: (id: string) => void;
+  onNewSession: () => void;
+  onDeleteSession: (id: string) => void;
+  onOpenDocManager: () => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  onOpenCommandPalette: () => void;
+  docCount: number;
+  onToggleTheme: () => void;
+  theme: ThemeType;
+  onLogout: () => void;
+}
 
 export default function Sidebar({ 
   chatSessions, 
@@ -28,29 +46,28 @@ export default function Sidebar({
   onOpenCommandPalette,
   docCount,
   onToggleTheme,
-  theme
-}) {
-  const [hoveredSessionId, setHoveredSessionId] = useState(null);
-  const [sessionToDelete, setSessionToDelete] = useState(null);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
-  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  theme,
+  onLogout
+}: SidebarProps) {
+  const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
+  const [sessionToDelete, setSessionToDelete] = useState<ChatSession | null>(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState<boolean>(false);
 
-  const profileRef = useRef(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
-  // Close profile menu when clicking outside
+  // Close profile dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (profileRef.current && !profileRef.current.contains(e.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setIsProfileMenuOpen(false);
       }
     };
-    if (isProfileMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isProfileMenuOpen]);
+  }, []);
 
   const confirmDelete = () => {
     if (sessionToDelete) {
@@ -61,12 +78,7 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Mobile Drawer Backdrop */}
-      {!isCollapsed && (
-        <div className="mobile-sidebar-backdrop" onClick={onToggleCollapse} />
-      )}
-
-      <aside className={`chatgpt-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      <aside className={`chatgpt-sidebar-root ${isCollapsed ? 'collapsed' : ''}`}>
         {/* Top Header Row */}
         {!isCollapsed ? (
           <div className="sidebar-brand-header">
@@ -138,60 +150,80 @@ export default function Sidebar({
             >
               <FolderOpen size={18} className="quick-nav-icon" />
               <span className="nav-text">Document Library</span>
-              <span className="nav-count">{docCount} files</span>
+              <span className="doc-count-badge">{docCount} files</span>
             </button>
           </div>
         )}
 
-        {/* Chat History Section */}
+        {/* History List */}
         {!isCollapsed && (
-          <div className="sidebar-history-container">
-            <div className="history-section-header">Recents</div>
+          <div className="sidebar-history-pane">
+            <div className="history-group-label">Recents</div>
             <div className="history-items-list">
-              {chatSessions.map((session) => (
-                <div 
-                  key={session.id}
-                  className={`history-item-row ${currentSessionId === session.id ? 'active' : ''}`}
-                  onClick={() => onSelectSession(session.id)}
-                  onMouseEnter={() => setHoveredSessionId(session.id)}
-                  onMouseLeave={() => setHoveredSessionId(null)}
-                >
-                  <span className="history-item-title">{session.title}</span>
-                  {hoveredSessionId === session.id && (
-                    <button 
-                      className="history-delete-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSessionToDelete(session);
-                      }}
-                      title="Delete chat"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  )}
-                </div>
-              ))}
+              {chatSessions.map((session) => {
+                const isActive = session.id === currentSessionId;
+                const isHovered = session.id === hoveredSessionId;
+
+                return (
+                  <div
+                    key={session.id}
+                    className={`history-row-item ${isActive ? 'active' : ''}`}
+                    onClick={() => onSelectSession(session.id)}
+                    onMouseEnter={() => setHoveredSessionId(session.id)}
+                    onMouseLeave={() => setHoveredSessionId(null)}
+                  >
+                    <span className="history-item-title">{session.title}</span>
+
+                    {/* Trash Delete Action on Hover */}
+                    {isHovered && (
+                      <button
+                        className="history-delete-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSessionToDelete(session);
+                        }}
+                        title="Delete conversation"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Bottom Profile (Interactive Menu Trigger) */}
-        <div className="sidebar-footer-profile" ref={profileRef}>
-          {/* Profile Popup Menu */}
+        {/* Bottom User Profile Section */}
+        <div className="sidebar-bottom-profile" ref={profileRef}>
+          <button 
+            className="user-profile-row-btn"
+            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+            title="User Profile"
+          >
+            <div className="user-avatar-circle">
+              <span>SP</span>
+            </div>
+            {!isCollapsed && (
+              <div className="user-info-text">
+                <span className="user-name">Shubham Prajapati</span>
+                <span className="user-plan">Pro Workspace</span>
+              </div>
+            )}
+          </button>
+
+          {/* User Settings Dropdown Menu */}
           {isProfileMenuOpen && (
-            <div className="profile-popup-menu anim-pop-in">
-              <div className="popup-user-header">
-                <div className="popup-avatar">SP</div>
-                <div className="popup-user-text">
-                  <span className="user-email">shubham@enterprise.ai</span>
-                  <span className="user-badge">Pro Plan</span>
-                </div>
+            <div className="profile-dropdown-menu anim-pop-in">
+              <div className="dropdown-user-header">
+                <div className="dropdown-user-name">Shubham Prajapati</div>
+                <div className="dropdown-user-email">shubham@example.com</div>
               </div>
 
-              <div className="popup-divider" />
+              <div className="dropdown-divider"></div>
 
               <button 
-                className="popup-menu-item"
+                className="dropdown-menu-item"
                 onClick={() => {
                   setIsSettingsOpen(true);
                   setIsProfileMenuOpen(false);
@@ -202,7 +234,7 @@ export default function Sidebar({
               </button>
 
               <button 
-                className="popup-menu-item"
+                className="dropdown-menu-item"
                 onClick={() => {
                   setIsShortcutsOpen(true);
                   setIsProfileMenuOpen(false);
@@ -212,13 +244,23 @@ export default function Sidebar({
                 <span>Keyboard Shortcuts</span>
               </button>
 
-              <div className="popup-divider" />
+              <button 
+                className="dropdown-menu-item"
+                onClick={() => {
+                  onToggleTheme();
+                }}
+              >
+                {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+                <span>{theme === 'dark' ? 'Light Theme' : 'Dark Theme'}</span>
+              </button>
+
+              <div className="dropdown-divider"></div>
 
               <button 
-                className="popup-menu-item logout"
+                className="dropdown-menu-item text-danger"
                 onClick={() => {
-                  setIsProfileMenuOpen(false);
                   setIsLogoutModalOpen(true);
+                  setIsProfileMenuOpen(false);
                 }}
               >
                 <LogOut size={15} />
@@ -226,62 +268,47 @@ export default function Sidebar({
               </button>
             </div>
           )}
-
-          <div 
-            className={`profile-pill-card ${isProfileMenuOpen ? 'active' : ''} collapsed-btn-wrap`}
-            onClick={() => setIsProfileMenuOpen(prev => !prev)}
-            title="Account & Settings"
-          >
-            <div className="profile-avatar">SP</div>
-            {!isCollapsed && (
-              <div className="profile-info">
-                <span className="profile-name">Shubham Prajapati</span>
-                <span className="profile-sub">Pro Workspace</span>
-              </div>
-            )}
-            {isCollapsed && <span className="collapsed-tooltip">Shubham Prajapati</span>}
-          </div>
         </div>
       </aside>
 
       {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="settings-modal-backdrop anim-fade-in" onClick={() => setIsSettingsOpen(false)}>
-          <div className="settings-modal-card anim-pop-in" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-top-bar">
+        <div className="modal-backdrop-overlay anim-fade-in" onClick={() => setIsSettingsOpen(false)}>
+          <div className="settings-modal-card anim-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-modal-header">
               <h3>Settings</h3>
-              <button className="modal-close" onClick={() => setIsSettingsOpen(false)}>
-                <X size={16} />
+              <button className="modal-close-btn" onClick={() => setIsSettingsOpen(false)}>
+                <X size={18} />
               </button>
             </div>
 
-            <div className="settings-content-body">
-              <div className="settings-row">
-                <div className="settings-row-info">
-                  <h4>Theme</h4>
-                  <p>Choose between light and dark mode or follow system.</p>
+            <div className="settings-modal-body">
+              <div className="settings-section-title">Theme & Appearance</div>
+              <div className="settings-row-item">
+                <div>
+                  <div className="settings-label">Color Theme</div>
+                  <div className="settings-sublabel">Choose between clean light mode and sleek dark mode</div>
                 </div>
                 <button className="settings-toggle-btn" onClick={onToggleTheme}>
-                  {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                  {theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
                 </button>
               </div>
 
-              <div className="settings-row">
-                <div className="settings-row-info">
-                  <h4>Embedding Model</h4>
-                  <p>OpenAI text-embedding-3-small (1536d)</p>
+              <div className="settings-section-title">RAG Engine Parameters</div>
+              <div className="settings-row-item">
+                <div>
+                  <div className="settings-label">Semantic Chunk Size</div>
+                  <div className="settings-sublabel">512 tokens with 64 token sliding overlap</div>
                 </div>
-                <span className="settings-pill-badge">Active</span>
+                <span className="settings-badge">Optimized</span>
               </div>
 
-              <div className="settings-row">
-                <div className="settings-row-info">
-                  <h4>Indexed Documents</h4>
-                  <p>{docCount} files processed across PDF, Excel & Markdown</p>
+              <div className="settings-row-item">
+                <div>
+                  <div className="settings-label">Embedding Model</div>
+                  <div className="settings-sublabel">text-embedding-3-large (3072 dimensions)</div>
                 </div>
-                <button className="settings-action-link" onClick={() => { setIsSettingsOpen(false); onOpenDocManager(); }}>
-                  Manage
-                </button>
+                <span className="settings-badge">Active</span>
               </div>
             </div>
           </div>
@@ -290,12 +317,12 @@ export default function Sidebar({
 
       {/* Keyboard Shortcuts Modal */}
       {isShortcutsOpen && (
-        <div className="settings-modal-backdrop anim-fade-in" onClick={() => setIsShortcutsOpen(false)}>
-          <div className="settings-modal-card anim-pop-in" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-top-bar">
+        <div className="modal-backdrop-overlay anim-fade-in" onClick={() => setIsShortcutsOpen(false)}>
+          <div className="settings-modal-card anim-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-modal-header">
               <h3>Keyboard Shortcuts</h3>
-              <button className="modal-close" onClick={() => setIsShortcutsOpen(false)}>
-                <X size={16} />
+              <button className="modal-close-btn" onClick={() => setIsShortcutsOpen(false)}>
+                <X size={18} />
               </button>
             </div>
 
@@ -367,6 +394,9 @@ export default function Sidebar({
                 className="btn-danger-confirm" 
                 onClick={() => {
                   setIsLogoutModalOpen(false);
+                  if (onLogout) {
+                    onLogout();
+                  }
                 }}
               >
                 Log out

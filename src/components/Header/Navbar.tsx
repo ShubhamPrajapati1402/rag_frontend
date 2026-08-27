@@ -1,5 +1,14 @@
-import { ChevronDown, Sun, Moon, MessageSquare, FolderOpen, Sparkles } from 'lucide-react';
+import { ChevronDown, Sun, Moon, MessageSquare, FolderOpen } from 'lucide-react';
+import { ThemeType } from '../../types';
 import './Navbar.css';
+
+interface NavbarProps {
+  theme: ThemeType;
+  onToggleTheme: () => void;
+  activeTab: 'chat' | 'documents';
+  setActiveTab: (tab: 'chat' | 'documents') => void;
+  docCount: number;
+}
 
 export default function Navbar({ 
   theme, 
@@ -7,7 +16,7 @@ export default function Navbar({
   activeTab, 
   setActiveTab, 
   docCount 
-}) {
+}: NavbarProps) {
   return (
     <header className="chatgpt-top-header">
       {/* Left: ChatGPT Model Selector Pill */}
