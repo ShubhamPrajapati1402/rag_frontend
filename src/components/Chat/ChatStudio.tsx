@@ -114,7 +114,7 @@ export default function ChatStudio({
       return [
         "Attach a PDF or spreadsheet to start analyzing",
         "Upload financial records to calculate margins",
-        "How does DocuMind extract structured tables?"
+        "How does Noesis extract structured tables?"
       ];
     }
     return documents.slice(0, 3).map((doc) => {
@@ -437,7 +437,7 @@ export default function ChatStudio({
           <input 
             ref={inputRef}
             type="text" 
-            placeholder="Message DocuMind..."
+            placeholder="Message Noesis..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -454,7 +454,7 @@ export default function ChatStudio({
 
         {/* ChatGPT Disclaimer */}
         <div className="chatgpt-disclaimer">
-          DocuMind can make mistakes. Verify important document info.
+          Noesis can make mistakes. Verify important document info.
         </div>
       </div>
 

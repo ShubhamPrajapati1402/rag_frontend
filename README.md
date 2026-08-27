@@ -1,4 +1,4 @@
-# DocuMind RAG — Frontend (React + TypeScript + Vite)
+# Noesis RAG — Frontend (React + TypeScript + Vite)
 
 An enterprise-grade, high-performance RAG (Retrieval-Augmented Generation) frontend interface engineered with **React 19**, **TypeScript**, and **Vite**.
 

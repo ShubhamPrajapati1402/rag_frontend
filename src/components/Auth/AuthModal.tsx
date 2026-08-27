@@ -8,9 +8,11 @@ import {
   CheckCircle2, 
   Eye, 
   EyeOff, 
-  User
+  User,
+  AlertCircle
 } from 'lucide-react';
 import { UserProfile } from '../../types';
+import '../Chat/ChatStudio.css';
 import './AuthModal.css';
 
 interface AuthModalProps {
@@ -18,13 +20,16 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ onLogin }: AuthModalProps) {
-  const [name, setName] = useState('Shubham Prajapati');
-  const [email, setEmail] = useState('shubham@example.com');
-  const [password, setPassword] = useState('••••••••••••');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [resetSent, setResetSent] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -34,8 +39,19 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     setMousePos({ x, y });
   };
 
+  const preventClipboard = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+  };
+
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
+    setErrorMessage(null);
+
+    if (authMode === 'signup' && password !== confirmPassword) {
+      setErrorMessage('Passwords do not match. Please re-enter.');
+      return;
+    }
+
     setIsLoading(true);
 
     if (authMode === 'forgot') {
@@ -48,9 +64,13 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
 
     setTimeout(() => {
       setIsLoading(false);
+      const userDisplayName = authMode === 'signup' 
+        ? (name.trim() || 'New User') 
+        : (email.includes('@') ? email.split('@')[0].replace(/[._]/g, ' ') : 'Shubham Prajapati');
+
       onLogin({
-        name: authMode === 'signup' ? (name || 'New User') : 'Shubham Prajapati',
-        email: email || 'shubham@example.com',
+        name: userDisplayName.charAt(0).toUpperCase() + userDisplayName.slice(1),
+        email: email.trim() || 'user@example.com',
         role: 'Pro Workspace'
       });
     }, 600);
@@ -68,6 +88,12 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     }, 600);
   };
 
+  const switchMode = (mode: 'signin' | 'signup' | 'forgot') => {
+    setAuthMode(mode);
+    setResetSent(false);
+    setErrorMessage(null);
+  };
+
   return (
     <div 
       className="auth-canvas-overlay anim-fade-in" 
@@ -82,20 +108,68 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
       <div className="auth-grid-pattern"></div>
 
       <div className="auth-card-box anim-slide-up">
-        {/* Branding & Interactive Orbital Halo */}
+        {/* Branding & 3D Gyroscopic Solar Core (Identical to ChatStudio) */}
         <div className="auth-brand-badge">
-          <div className="auth-orbital-halo-wrapper">
-            <div className="auth-mini-orbit orbit-a">
-              <span className="mini-orbit-node"></span>
+          <div className="neural-3d-scene auth-3d-emblem">
+            {/* Central Volumetric 3D Sphere */}
+            <div className="volumetric-3d-sphere">
+              <Brain size={22} className="sphere-brain-hologram" />
             </div>
-            <div className="auth-mini-orbit orbit-b">
-              <span className="mini-orbit-node"></span>
+
+            {/* Interactive 3D Rotator Wrapper */}
+            <div className="interactive-3d-rotator">
+              <div className="neural-3d-floating-system">
+                {/* 1. Horizontal Equatorial Ring (0°) */}
+                <div className="gyro-3d-ring gyro-equatorial">
+                  <div className="planet-revolver rev-eq">
+                    <div className="orbit-planet">
+                      <div className="sub-moon-orbit moon-orbit-eq">
+                        <div className="sub-moon"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. +45° Tilted Ring from Right Side */}
+                <div className="gyro-3d-ring gyro-tilt-pos">
+                  <div className="planet-revolver rev-pos">
+                    <div className="orbit-planet">
+                      <div className="sub-moon-orbit moon-orbit-pos">
+                        <div className="sub-moon"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. -45° Tilted Ring from Left Side */}
+                <div className="gyro-3d-ring gyro-tilt-neg">
+                  <div className="planet-revolver rev-neg">
+                    <div className="orbit-planet">
+                      <div className="sub-moon-orbit moon-orbit-neg">
+                        <div className="sub-moon"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. 90° Polar Ring Perpendicular to Equatorial Ring */}
+                <div className="gyro-3d-ring gyro-polar-90">
+                  <div className="planet-revolver rev-polar">
+                    <div className="orbit-planet">
+                      <div className="sub-moon-orbit moon-orbit-polar">
+                        <div className="sub-moon"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="auth-brain-orb">
-              <Brain size={22} className="auth-brain-icon" />
-            </div>
+
+            {/* Ground Floor Shadow */}
+            <div className="neural-3d-floor-shadow"></div>
           </div>
-          <h2>DocuMind</h2>
+
+          <h2>Noesis</h2>
           <span className="auth-tagline">Autonomous Multi-Modal RAG Platform</span>
         </div>
 
@@ -114,10 +188,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 <button 
                   type="button" 
                   className="auth-primary-submit-btn"
-                  onClick={() => {
-                    setAuthMode('signin');
-                    setResetSent(false);
-                  }}
+                  onClick={() => switchMode('signin')}
                 >
                   <ArrowLeft size={15} />
                   <span>Return to Sign In</span>
@@ -163,10 +234,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   <button 
                     type="button" 
                     className="auth-back-btn"
-                    onClick={() => {
-                      setAuthMode('signin');
-                      setResetSent(false);
-                    }}
+                    onClick={() => switchMode('signin')}
                   >
                     <ArrowLeft size={13} />
                     <span>Back to Sign In</span>
@@ -186,6 +254,14 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 </p>
               </div>
 
+              {/* Error Message Banner */}
+              {errorMessage && (
+                <div className="auth-error-banner anim-slide-up">
+                  <AlertCircle size={14} className="error-icon" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
               {/* Email & Password Form */}
               <form onSubmit={handleSubmit} className="auth-input-form">
                 {authMode === 'signup' && (
@@ -198,7 +274,8 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                         type="text" 
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="Your name"
+                        placeholder="e.g. Shubham Prajapati"
+                        autoComplete="name"
                         required
                       />
                     </div>
@@ -215,6 +292,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="name@company.com"
+                      autoComplete="email"
                       required
                     />
                   </div>
@@ -227,10 +305,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                       <button 
                         type="button" 
                         className="forgot-pass-link" 
-                        onClick={() => {
-                          setAuthMode('forgot');
-                          setResetSent(false);
-                        }}
+                        onClick={() => switchMode('forgot')}
                       >
                         Forgot?
                       </button>
@@ -243,7 +318,11 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                       type={showPassword ? 'text' : 'password'} 
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
+                      placeholder="Enter password"
+                      autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+                      onCopy={preventClipboard}
+                      onPaste={preventClipboard}
+                      onCut={preventClipboard}
                       required
                     />
                     <button 
@@ -256,6 +335,36 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                     </button>
                   </div>
                 </div>
+
+                {/* Confirm Password Field (Sign Up Mode) */}
+                {authMode === 'signup' && (
+                  <div className="auth-field-group anim-slide-up">
+                    <label htmlFor="auth-confirm-password">Confirm password</label>
+                    <div className="auth-input-wrapper">
+                      <Lock size={15} className="auth-field-icon" />
+                      <input 
+                        id="auth-confirm-password"
+                        type={showConfirmPassword ? 'text' : 'password'} 
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter password"
+                        autoComplete="new-password"
+                        onCopy={preventClipboard}
+                        onPaste={preventClipboard}
+                        onCut={preventClipboard}
+                        required
+                      />
+                      <button 
+                        type="button" 
+                        className="password-toggle-btn"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <button type="submit" className="auth-primary-submit-btn" disabled={isLoading}>
                   {isLoading ? (
@@ -300,7 +409,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 <button 
                   type="button" 
                   className="auth-toggle-btn"
-                  onClick={() => setAuthMode(prev => prev === 'signin' ? 'signup' : 'signin')}
+                  onClick={() => switchMode(authMode === 'signin' ? 'signup' : 'signin')}
                 >
                   {authMode === 'signin' ? 'Sign up' : 'Sign in'}
                 </button>

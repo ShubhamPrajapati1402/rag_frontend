@@ -22,7 +22,7 @@ export default function Navbar({
       {/* Left: ChatGPT Model Selector Pill */}
       <div className="header-left">
         <div className="model-selector-pill">
-          <span className="model-title">DocuMind RAG</span>
+          <span className="model-title">Noesis RAG</span>
           <ChevronDown size={14} className="model-chevron" />
         </div>
 

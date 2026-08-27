@@ -82,7 +82,7 @@ export default function Sidebar({
         {/* Top Header Row */}
         {!isCollapsed ? (
           <div className="sidebar-brand-header">
-            <span className="sidebar-brand-title">DocuMind</span>
+            <span className="sidebar-brand-title">Noesis</span>
             <div className="brand-header-actions">
               <button 
                 className="sidebar-action-btn" 
@@ -378,7 +378,7 @@ export default function Sidebar({
         <div className="delete-modal-backdrop anim-fade-in" onClick={() => setIsLogoutModalOpen(false)}>
           <div className="delete-modal-card anim-slide-up" onClick={(e) => e.stopPropagation()}>
             <div className="delete-modal-header">
-              <h3>Log out of DocuMind?</h3>
+              <h3>Log out of Noesis?</h3>
               <button className="modal-x" onClick={() => setIsLogoutModalOpen(false)}>
                 <X size={16} />
               </button>

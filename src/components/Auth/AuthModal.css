@@ -120,78 +120,38 @@
   text-align: center;
 }
 
-/* Mini 3D Orbital Halo Animation on Emblem */
-.auth-orbital-halo-wrapper {
+/* 3D Multi-Shell Gyroscopic Solar System Emblem */
+.auth-3d-emblem {
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 2px auto;
   position: relative;
-  width: 58px;
-  height: 58px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 6px;
+  perspective: 1200px;
 }
 
-.auth-mini-orbit {
-  position: absolute;
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  border: 1.2px dotted rgba(255, 255, 255, 0.4);
-  pointer-events: none;
+.auth-3d-emblem .interactive-3d-rotator,
+.auth-3d-emblem .neural-3d-floating-system {
+  width: 80px;
+  height: 80px;
 }
 
-[data-theme="light"] .auth-mini-orbit {
-  border-color: rgba(0, 0, 0, 0.3);
+.auth-3d-emblem .gyro-3d-ring {
+  width: 80px;
+  height: 80px;
 }
 
-.orbit-a {
-  transform: rotateX(70deg) rotateZ(20deg);
-  animation: miniOrbitSpin 8s linear infinite;
+.auth-3d-emblem .volumetric-3d-sphere {
+  width: 44px;
+  height: 44px;
 }
 
-.orbit-b {
-  transform: rotateY(70deg) rotateZ(-30deg);
-  animation: miniOrbitSpin 11s linear infinite reverse;
-}
-
-.mini-orbit-node {
-  position: absolute;
-  top: -2px;
-  left: 50%;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #6366f1;
-  box-shadow: 0 0 6px #6366f1;
-}
-
-@keyframes miniOrbitSpin {
-  0% { transform: rotate(0deg) rotateX(70deg); }
-  100% { transform: rotate(360deg) rotateX(70deg); }
-}
-
-.auth-brain-orb {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #5a5a5e 0%, #303034 50%, #1a1a1d 100%);
-  box-shadow: 
-    0 8px 20px rgba(0, 0, 0, 0.4),
-    inset 0 2px 4px rgba(255, 255, 255, 0.4),
-    inset 0 -3px 6px rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  z-index: 2;
-}
-
-[data-theme="light"] .auth-brain-orb {
-  background: radial-gradient(circle at 35% 30%, #b8b8be 0%, #7c7c84 50%, #4e4e56 100%);
-  box-shadow: 
-    0 8px 20px rgba(0, 0, 0, 0.15),
-    inset 0 2px 4px rgba(255, 255, 255, 0.65),
-    inset 0 -3px 6px rgba(0, 0, 0, 0.4);
+.auth-3d-emblem .neural-3d-floor-shadow {
+  width: 50px;
+  height: 12px;
+  bottom: 0;
 }
 
 .auth-brand-badge h2 {
@@ -247,6 +207,23 @@
   color: var(--text-secondary, #a3a3a3);
   margin: 0;
   line-height: 1.35;
+}
+
+.auth-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.error-icon {
+  flex-shrink: 0;
 }
 
 .auth-input-form {
@@ -314,6 +291,8 @@
   padding: 4px;
   border-radius: 4px;
   transition: color 0.15s ease;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .password-toggle-btn:hover {

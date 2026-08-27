@@ -25,7 +25,7 @@ function getStoredUserTheme(): ThemeType {
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const saved = localStorage.getItem('documind_auth');
+    const saved = localStorage.getItem('noesis_auth');
     return saved !== 'false'; // Default to authenticated for instant preview
   });
 
@@ -128,15 +128,15 @@ function App() {
 
   const handleLogin = (user: UserProfile) => {
     setIsAuthenticated(true);
-    localStorage.setItem('documind_auth', 'true');
+    localStorage.setItem('noesis_auth', 'true');
     if (user) {
-      localStorage.setItem('documind_user', JSON.stringify(user));
+      localStorage.setItem('noesis_user', JSON.stringify(user));
     }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    localStorage.setItem('documind_auth', 'false');
+    localStorage.setItem('noesis_auth', 'false');
   };
 
   const handleNewSession = () => {
