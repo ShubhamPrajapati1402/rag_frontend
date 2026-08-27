@@ -1,19 +1,38 @@
 import React, { useState } from 'react';
-import { Brain, ArrowRight, ArrowLeft, Lock, Mail, CheckCircle2 } from 'lucide-react';
-import { ThemeType, UserProfile } from '../../types';
+import { 
+  Brain, 
+  ArrowRight, 
+  ArrowLeft, 
+  Lock, 
+  Mail, 
+  CheckCircle2, 
+  Eye, 
+  EyeOff, 
+  User
+} from 'lucide-react';
+import { UserProfile } from '../../types';
 import './AuthModal.css';
 
 interface AuthModalProps {
   onLogin: (user: UserProfile) => void;
-  theme: ThemeType;
 }
 
-export default function AuthModal({ onLogin, theme }: AuthModalProps) {
+export default function AuthModal({ onLogin }: AuthModalProps) {
+  const [name, setName] = useState('Shubham Prajapati');
   const [email, setEmail] = useState('shubham@example.com');
   const [password, setPassword] = useState('••••••••••••');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [resetSent, setResetSent] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setMousePos({ x, y });
+  };
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -30,7 +49,7 @@ export default function AuthModal({ onLogin, theme }: AuthModalProps) {
     setTimeout(() => {
       setIsLoading(false);
       onLogin({
-        name: 'Shubham Prajapati',
+        name: authMode === 'signup' ? (name || 'New User') : 'Shubham Prajapati',
         email: email || 'shubham@example.com',
         role: 'Pro Workspace'
       });
@@ -50,12 +69,31 @@ export default function AuthModal({ onLogin, theme }: AuthModalProps) {
   };
 
   return (
-    <div className="auth-canvas-overlay anim-fade-in">
+    <div 
+      className="auth-canvas-overlay anim-fade-in" 
+      onMouseMove={handleMouseMove}
+      style={{
+        '--mouse-x': `${mousePos.x}%`,
+        '--mouse-y': `${mousePos.y}%`
+      } as React.CSSProperties}
+    >
+      {/* Background Interactive Ambient Lighting & Grid */}
+      <div className="auth-ambient-spotlight"></div>
+      <div className="auth-grid-pattern"></div>
+
       <div className="auth-card-box anim-slide-up">
-        {/* Branding & Logo */}
+        {/* Branding & Interactive Orbital Halo */}
         <div className="auth-brand-badge">
-          <div className="auth-brain-orb">
-            <Brain size={22} className="auth-brain-icon" />
+          <div className="auth-orbital-halo-wrapper">
+            <div className="auth-mini-orbit orbit-a">
+              <span className="mini-orbit-node"></span>
+            </div>
+            <div className="auth-mini-orbit orbit-b">
+              <span className="mini-orbit-node"></span>
+            </div>
+            <div className="auth-brain-orb">
+              <Brain size={22} className="auth-brain-icon" />
+            </div>
           </div>
           <h2>DocuMind</h2>
           <span className="auth-tagline">Autonomous Multi-Modal RAG Platform</span>
@@ -67,7 +105,7 @@ export default function AuthModal({ onLogin, theme }: AuthModalProps) {
             resetSent ? (
               <div className="auth-reset-success-pane anim-fade-in">
                 <div className="reset-success-icon-box">
-                  <CheckCircle2 size={32} className="text-emerald-500" />
+                  <CheckCircle2 size={30} className="text-emerald-500" />
                 </div>
                 <h3>Check your email</h3>
                 <p>
@@ -150,6 +188,23 @@ export default function AuthModal({ onLogin, theme }: AuthModalProps) {
 
               {/* Email & Password Form */}
               <form onSubmit={handleSubmit} className="auth-input-form">
+                {authMode === 'signup' && (
+                  <div className="auth-field-group anim-slide-up">
+                    <label htmlFor="auth-name">Full name</label>
+                    <div className="auth-input-wrapper">
+                      <User size={15} className="auth-field-icon" />
+                      <input 
+                        id="auth-name"
+                        type="text" 
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Your name"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="auth-field-group">
                   <label htmlFor="auth-email">Email address</label>
                   <div className="auth-input-wrapper">
@@ -185,12 +240,20 @@ export default function AuthModal({ onLogin, theme }: AuthModalProps) {
                     <Lock size={15} className="auth-field-icon" />
                     <input 
                       id="auth-password"
-                      type="password" 
+                      type={showPassword ? 'text' : 'password'} 
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
                       required
                     />
+                    <button 
+                      type="button" 
+                      className="password-toggle-btn"
+                      onClick={() => setShowPassword(!showPassword)}
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
                   </div>
                 </div>
 
