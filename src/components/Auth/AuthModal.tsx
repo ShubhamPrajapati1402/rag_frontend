@@ -39,25 +39,25 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   // 6-digit OTP state
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const [resendTimer, setResendTimer] = useState<number>(30);
-  const [canResend, setCanResend] = useState<boolean>(false);
+  const [cooldown, setCooldown] = useState<number>(60);
 
-  // OTP Countdown timer
+  // 60-Second OTP Countdown timer
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (authMode === 'otp' && resendTimer > 0) {
+    let interval: ReturnType<typeof setInterval>;
+    if (authMode === 'otp' && cooldown > 0) {
       interval = setInterval(() => {
-        setResendTimer(prev => {
-          if (prev <= 1) {
-            setCanResend(true);
-            return 0;
-          }
-          return prev - 1;
-        });
+        setCooldown(prev => (prev > 0 ? prev - 1 : 0));
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [authMode, resendTimer]);
+  }, [authMode, cooldown]);
+
+  // Format cooldown helper (e.g. 0:59s, 0:08s)
+  const formatCooldown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}s`;
+  };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -172,8 +172,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         await authApi.signup(name, email, password);
         setSuccessMessage(`A 6-digit verification code has been sent to ${email}`);
         setAuthMode('otp');
-        setResendTimer(30);
-        setCanResend(false);
+        setCooldown(60);
         setOtpDigits(['', '', '', '', '', '']);
       } catch (err: any) {
         setErrorMessage(err.message || 'Signup failed. Please try again.');
@@ -208,14 +207,13 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   };
 
   const handleResendOtp = async () => {
-    if (!canResend) return;
+    if (cooldown > 0 || isLoading) return;
     setErrorMessage(null);
     setIsLoading(true);
     try {
       await authApi.resendOtp(email);
       setSuccessMessage('A fresh 6-digit verification code has been sent to your email.');
-      setResendTimer(30);
-      setCanResend(false);
+      setCooldown(60);
       setOtpDigits(['', '', '', '', '', '']);
       otpInputRefs.current[0]?.focus();
     } catch (err: any) {
@@ -387,21 +385,19 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
               </form>
 
               <div className="otp-resend-row">
-                {canResend ? (
-                  <button 
-                    type="button" 
-                    className="otp-resend-btn active"
-                    onClick={handleResendOtp}
-                    disabled={isLoading}
-                  >
-                    <RotateCw size={13} />
-                    <span>Resend verification code</span>
-                  </button>
-                ) : (
-                  <span className="otp-timer-text">
-                    Resend code in <strong>{resendTimer}s</strong>
+                <button 
+                  type="button" 
+                  className={`otp-resend-btn ${cooldown === 0 ? 'enabled' : 'disabled'}`}
+                  onClick={handleResendOtp}
+                  disabled={cooldown > 0 || isLoading}
+                >
+                  <RotateCw size={13} className={isLoading ? 'auth-spin-icon' : ''} />
+                  <span>
+                    {cooldown > 0 
+                      ? `Resend code in ${formatCooldown(cooldown)}` 
+                      : 'Resend code'}
                   </span>
-                )}
+                </button>
               </div>
 
               <div className="auth-toggle-footer">

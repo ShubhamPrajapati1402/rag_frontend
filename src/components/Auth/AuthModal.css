@@ -305,31 +305,60 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-}
-
-.otp-timer-text {
-  color: var(--text-tertiary, #737373);
+  margin: 4px 0 2px 0;
 }
 
 .otp-resend-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  color: var(--accent, #6366f1);
-  font-size: 12px;
+  justify-content: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: 0.01em;
 }
 
-.otp-resend-btn:hover {
-  text-decoration: underline;
-  color: #818cf8;
+/* Disabled State: Countdown ticking down with prominent bright text */
+.otp-resend-btn.disabled {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+  cursor: not-allowed;
+  opacity: 0.95;
+}
+
+[data-theme="light"] .otp-resend-btn.disabled {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #4f46e5;
+}
+
+/* Enabled State: Clickable with active hover effect */
+.otp-resend-btn.enabled {
+  background: rgba(99, 102, 241, 0.16);
+  border: 1px solid #6366f1;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+[data-theme="light"] .otp-resend-btn.enabled {
+  background: #6366f1;
+  color: #ffffff;
+  border-color: #4f46e5;
+}
+
+.otp-resend-btn.enabled:hover {
+  background: #6366f1;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.auth-spin-icon {
+  animation: spin 0.8s linear infinite;
 }
 
 .auth-input-form {
