@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Brain, 
   ArrowRight, 
@@ -76,7 +76,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
               theme: 'filled_black',
               size: 'large',
               type: 'standard',
-              shape: 'rectangular',
+              shape: 'pill',
               text: 'continue_with',
               width: 320,
               logo_alignment: 'left',
@@ -300,9 +300,61 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         {/* Branding & 3D Gyroscopic Solar Core */}
         <div className="auth-brand-badge">
           <div className="neural-3d-scene auth-3d-emblem">
+            {/* Central Volumetric 3D Sphere */}
             <div className="volumetric-3d-sphere">
               <Brain size={22} className="sphere-brain-hologram" />
             </div>
+
+            {/* Symmetrical 4-Plane Gyroscopic Solar System */}
+            <div className="interactive-3d-rotator">
+              <div className="neural-3d-floating-system">
+                {/* 1. Horizontal Equatorial Ring (0°) */}
+                <div className="gyro-3d-ring gyro-equatorial">
+                  <div className="planet-revolver rev-eq">
+                    <div className="orbit-planet">
+                      <div className="sub-moon-orbit moon-orbit-eq">
+                        <div className="sub-moon"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. +45° Tilted Ring from Right Side */}
+                <div className="gyro-3d-ring gyro-tilt-pos">
+                  <div className="planet-revolver rev-pos">
+                    <div className="orbit-planet">
+                      <div className="sub-moon-orbit moon-orbit-pos">
+                        <div className="sub-moon"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. -45° Tilted Ring from Left Side */}
+                <div className="gyro-3d-ring gyro-tilt-neg">
+                  <div className="planet-revolver rev-neg">
+                    <div className="orbit-planet">
+                      <div className="sub-moon-orbit moon-orbit-neg">
+                        <div className="sub-moon"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. 90° Polar Ring Perpendicular to Equatorial Ring */}
+                <div className="gyro-3d-ring gyro-polar-90">
+                  <div className="planet-revolver rev-polar">
+                    <div className="orbit-planet">
+                      <div className="sub-moon-orbit moon-orbit-polar">
+                        <div className="sub-moon"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="neural-3d-floor-shadow"></div>
           </div>
           <h2>Noesis</h2>
           <span className="auth-badge-sub">Autonomous Multi-Modal RAG Platform</span>
@@ -476,12 +528,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
             /* 3. Sign In & Sign Up Modes */
             <>
               <div className="auth-header-text">
-                <h3>{authMode === 'signin' ? 'Welcome back' : 'Create an account'}</h3>
-                <p>
-                  {authMode === 'signin' 
-                    ? 'Sign in to access your neural semantic index and document collections.' 
-                    : 'Get started with autonomous document processing and neural RAG.'}
-                </p>
+                <h3>{authMode === 'signin' ? 'Sign in' : 'Create an account'}</h3>
               </div>
 
               {errorMessage && (
@@ -542,7 +589,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                         className="forgot-pass-link" 
                         onClick={() => switchMode('forgot')}
                       >
-                        Forgot?
+                        Forgot password?
                       </button>
                     )}
                   </div>

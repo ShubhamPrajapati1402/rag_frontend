@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from './components/Header/Navbar';
 import Sidebar from './components/Navigation/Sidebar';
 import ChatStudio from './components/Chat/ChatStudio';
@@ -204,6 +204,8 @@ function App() {
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             docCount={documents.length}
+            isSidebarCollapsed={isSidebarCollapsed}
+            onToggleSidebar={() => setIsSidebarCollapsed(prev => !prev)}
           />
 
           <div className="app-content-stage">
