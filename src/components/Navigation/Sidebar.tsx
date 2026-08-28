@@ -15,7 +15,7 @@ import {
   Keyboard,
   Check
 } from 'lucide-react';
-import { ChatSession, ThemeType } from '../../types';
+import { ChatSession, ThemeType, UserProfile } from '../../types';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -32,6 +32,7 @@ interface SidebarProps {
   onToggleTheme: () => void;
   theme: ThemeType;
   onLogout: () => void;
+  userProfile?: UserProfile | null;
 }
 
 export default function Sidebar({ 
@@ -47,7 +48,8 @@ export default function Sidebar({
   docCount,
   onToggleTheme,
   theme,
-  onLogout
+  onLogout,
+  userProfile
 }: SidebarProps) {
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
   const [sessionToDelete, setSessionToDelete] = useState<ChatSession | null>(null);
@@ -76,91 +78,91 @@ export default function Sidebar({
     }
   };
 
+  // Derive dynamic user display properties
+  const userName = userProfile?.name?.trim() || (userProfile?.email ? userProfile.email.split('@')[0] : '');
+  const userEmail = userProfile?.email || '';
+  const userInitial = (userName?.[0] || userEmail?.[0] || 'U').toUpperCase();
+
   return (
     <>
       <aside className={`chatgpt-sidebar-root ${isCollapsed ? 'collapsed' : ''}`}>
         {/* Top Header Row */}
         {!isCollapsed ? (
           <div className="sidebar-brand-header">
-            <span className="sidebar-brand-title">DocuMind</span>
+            <span className="sidebar-brand-title">Noesis</span>
             <div className="brand-header-actions">
               <button 
                 className="sidebar-action-btn" 
                 onClick={onOpenCommandPalette} 
                 title="Search (Ctrl+K)"
               >
-                <Search size={18} />
+                <Search size={16} />
+              </button>
+              <button 
+                className="sidebar-action-btn" 
+                onClick={onNewSession} 
+                title="New Chat"
+              >
+                <SquarePen size={16} />
               </button>
               <button 
                 className="sidebar-action-btn" 
                 onClick={onToggleCollapse} 
-                title="Close sidebar (Ctrl+B)"
+                title="Collapse Sidebar (Ctrl+B)"
               >
-                <PanelLeftClose size={18} />
+                <PanelLeftClose size={16} />
               </button>
             </div>
           </div>
         ) : (
-          <div className="collapsed-vertical-stack">
+          <div className="sidebar-collapsed-header">
             <button 
-              className="sidebar-action-btn collapsed-btn-wrap" 
+              className="sidebar-action-btn" 
               onClick={onToggleCollapse} 
-              title="Open sidebar (Ctrl+B)"
+              title="Expand Sidebar (Ctrl+B)"
             >
-              <PanelLeftOpen size={18} />
-              <span className="collapsed-tooltip">Open sidebar (Ctrl+B)</span>
+              <PanelLeftOpen size={16} />
             </button>
-
             <button 
-              className="sidebar-action-btn collapsed-btn-wrap" 
+              className="sidebar-action-btn" 
               onClick={onNewSession} 
-              title="New chat"
+              title="New Chat"
             >
-              <SquarePen size={18} />
-              <span className="collapsed-tooltip">New chat</span>
-            </button>
-
-            <button 
-              className="sidebar-action-btn collapsed-btn-wrap" 
-              onClick={onOpenDocManager} 
-              title="Document Library"
-            >
-              <FolderOpen size={18} />
-              <span className="collapsed-tooltip">Document Library</span>
+              <SquarePen size={16} />
             </button>
           </div>
         )}
 
-        {/* Primary Action Buttons */}
-        {!isCollapsed && (
-          <div className="sidebar-primary-actions">
-            <button 
-              className="new-chat-row-btn"
-              onClick={onNewSession}
-              title="New chat"
-            >
-              <SquarePen size={18} className="new-chat-icon" />
-              <span>New chat</span>
-            </button>
+        {/* Primary Action Button */}
+        <div className="sidebar-action-container">
+          <button className="sidebar-new-chat-row" onClick={onNewSession}>
+            <SquarePen size={15} />
+            {!isCollapsed && <span>New chat</span>}
+          </button>
+        </div>
 
-            <button 
-              className="quick-nav-row-btn"
-              onClick={onOpenDocManager}
-              title="Document Library"
-            >
-              <FolderOpen size={18} className="quick-nav-icon" />
-              <span className="nav-text">Document Library</span>
-              <span className="doc-count-badge">{docCount} files</span>
-            </button>
-          </div>
-        )}
+        {/* Navigation Section Tabs */}
+        <div className="sidebar-nav-section">
+          <button className="sidebar-nav-item" onClick={onOpenDocManager}>
+            <FolderOpen size={15} />
+            {!isCollapsed && (
+              <>
+                <span className="nav-item-label">Knowledge Base</span>
+                <span className="nav-item-badge">{docCount}</span>
+              </>
+            )}
+          </button>
+        </div>
 
-        {/* History List */}
+        {/* Chat History Section */}
         {!isCollapsed && (
           <div className="sidebar-history-pane">
-            <div className="history-group-label">Recents</div>
-            <div className="history-items-list">
-              {chatSessions.map((session) => {
+            <div className="history-section-header">
+              <span>Recent Conversations</span>
+            </div>
+
+            <div className="history-items-scroll">
+              {chatSessions.map(session => {
                 const isActive = session.id === currentSessionId;
                 const isHovered = session.id === hoveredSessionId;
 
@@ -174,17 +176,16 @@ export default function Sidebar({
                   >
                     <span className="history-item-title">{session.title}</span>
 
-                    {/* Trash Delete Action on Hover */}
-                    {isHovered && (
+                    {(isHovered || isActive) && (
                       <button
                         className="history-delete-btn"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSessionToDelete(session);
                         }}
-                        title="Delete conversation"
+                        title="Delete chat"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     )}
                   </div>
@@ -202,12 +203,12 @@ export default function Sidebar({
             title="User Profile"
           >
             <div className="user-avatar-circle">
-              <span>SP</span>
+              <span>{userInitial}</span>
             </div>
             {!isCollapsed && (
               <div className="user-info-text">
-                <span className="user-name">Shubham Prajapati</span>
-                <span className="user-plan">Pro Workspace</span>
+                <span className="user-name">{userName || userEmail || 'Account'}</span>
+                {userEmail && <span className="user-email-text">{userEmail}</span>}
               </div>
             )}
           </button>
@@ -216,8 +217,8 @@ export default function Sidebar({
           {isProfileMenuOpen && (
             <div className="profile-dropdown-menu anim-pop-in">
               <div className="dropdown-user-header">
-                <div className="dropdown-user-name">Shubham Prajapati</div>
-                <div className="dropdown-user-email">shubham@example.com</div>
+                <div className="dropdown-user-name">{userName || 'Account'}</div>
+                {userEmail && <div className="dropdown-user-email">{userEmail}</div>}
               </div>
 
               <div className="dropdown-divider"></div>
@@ -378,7 +379,7 @@ export default function Sidebar({
         <div className="delete-modal-backdrop anim-fade-in" onClick={() => setIsLogoutModalOpen(false)}>
           <div className="delete-modal-card anim-slide-up" onClick={(e) => e.stopPropagation()}>
             <div className="delete-modal-header">
-              <h3>Log out of DocuMind?</h3>
+              <h3>Log out of Noesis?</h3>
               <button className="modal-x" onClick={() => setIsLogoutModalOpen(false)}>
                 <X size={16} />
               </button>

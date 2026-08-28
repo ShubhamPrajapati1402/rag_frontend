@@ -5,26 +5,40 @@ import ChatStudio from './components/Chat/ChatStudio';
 import IngestionHub from './components/Ingestion/IngestionHub';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import AuthModal from './components/Auth/AuthModal';
+import { authApi } from './services/authApi';
 import { ThemeType, DocumentItem, ChatSession, UserProfile } from './types';
 import './App.css';
 
-function getInitialTheme(): ThemeType {
-  const saved = localStorage.getItem('app-theme') as ThemeType | null;
-  if (saved === 'dark' || saved === 'light') {
-    return saved;
-  }
+function getSystemTheme(): ThemeType {
   if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
     return 'dark';
   }
   return 'light';
 }
 
+function getStoredUserTheme(): ThemeType {
+  const saved = localStorage.getItem('app-theme') as ThemeType | null;
+  if (saved === 'dark' || saved === 'light') {
+    return saved;
+  }
+  return getSystemTheme();
+}
+
 function App() {
-  const [theme, setTheme] = useState<ThemeType>(getInitialTheme);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const saved = localStorage.getItem('documind_auth');
-    return saved !== 'false'; // Default to authenticated for instant preview
+    const saved = localStorage.getItem('noesis_auth');
+    return saved !== 'false';
   });
+
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+    const saved = localStorage.getItem('noesis_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // System theme for Login Page; User theme for App Workspace
+  const [systemTheme, setSystemTheme] = useState<ThemeType>(getSystemTheme);
+  const [userTheme, setUserTheme] = useState<ThemeType>(getStoredUserTheme);
+
   const [activeTab, setActiveTab] = useState<'chat' | 'documents'>('chat');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
@@ -69,25 +83,47 @@ function App() {
   ]);
   const [currentSessionId, setCurrentSessionId] = useState<string>('sess-1');
 
-  // Apply theme attribute to html document
+  // Verify active backend session cookie on initial app mount
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.classList.add(theme);
-  }, [theme]);
+    const verifySession = async () => {
+      try {
+        const user = await authApi.getMe();
+        if (user) {
+          setIsAuthenticated(true);
+          setUserProfile(user);
+          localStorage.setItem('noesis_auth', 'true');
+          localStorage.setItem('noesis_user', JSON.stringify(user));
+        }
+      } catch (err) {
+        console.log('Session verification checked:', err);
+      }
+    };
+    verifySession();
+  }, []);
 
-  // Listen for system theme changes if no manual preference is stored
+  // Continuous listener for OS System Theme changes
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleSystemThemeChange = (e: MediaQueryListEvent) => {
-      const saved = localStorage.getItem('app-theme');
-      if (!saved) {
-        setTheme(e.matches ? 'dark' : 'light');
+      const nextTheme = e.matches ? 'dark' : 'light';
+      setSystemTheme(nextTheme);
+      // If user hasn't explicitly set a custom theme in app, follow system
+      if (!localStorage.getItem('app-theme')) {
+        setUserTheme(nextTheme);
       }
     };
     mediaQuery.addEventListener('change', handleSystemThemeChange);
     return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
   }, []);
+
+  // Apply active theme (system default for Login; user preference for Workspace)
+  const activeTheme = isAuthenticated ? userTheme : systemTheme;
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', activeTheme);
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(activeTheme);
+  }, [activeTheme]);
 
   // Global keyboard shortcuts (Ctrl+K for search, Ctrl+B for sidebar toggle)
   useEffect(() => {
@@ -105,8 +141,9 @@ function App() {
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
   }, []);
 
+  // Toggle theme inside application (persists to localStorage for all future sessions)
   const handleToggleTheme = () => {
-    setTheme(prev => {
+    setUserTheme(prev => {
       const next: ThemeType = prev === 'dark' ? 'light' : 'dark';
       localStorage.setItem('app-theme', next);
       return next;
@@ -115,15 +152,19 @@ function App() {
 
   const handleLogin = (user: UserProfile) => {
     setIsAuthenticated(true);
-    localStorage.setItem('documind_auth', 'true');
+    setUserProfile(user);
+    localStorage.setItem('noesis_auth', 'true');
     if (user) {
-      localStorage.setItem('documind_user', JSON.stringify(user));
+      localStorage.setItem('noesis_user', JSON.stringify(user));
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authApi.logout();
     setIsAuthenticated(false);
-    localStorage.setItem('documind_auth', 'false');
+    setUserProfile(null);
+    localStorage.setItem('noesis_auth', 'false');
+    localStorage.removeItem('noesis_user');
   };
 
   const handleNewSession = () => {
@@ -141,9 +182,9 @@ function App() {
     setChatSessions(prev => prev.filter(s => s.id !== id));
   };
 
-  // If user is logged out, display the Authentication / Login screen
+  // If user is logged out, display the System-Default Authentication / Login screen
   if (!isAuthenticated) {
-    return <AuthModal onLogin={handleLogin} theme={theme} />;
+    return <AuthModal onLogin={handleLogin} />;
   }
 
   return (
@@ -164,14 +205,15 @@ function App() {
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         docCount={documents.length}
         onToggleTheme={handleToggleTheme}
-        theme={theme}
+        theme={userTheme}
         onLogout={handleLogout}
+        userProfile={userProfile}
       />
 
       {/* Main Viewport */}
       <div className="main-viewport-pane">
         <Navbar 
-          theme={theme} 
+          theme={userTheme} 
           onToggleTheme={handleToggleTheme}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
