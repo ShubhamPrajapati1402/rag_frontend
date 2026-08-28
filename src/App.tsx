@@ -41,44 +41,9 @@ function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   
-  const [documents, setDocuments] = useState<DocumentItem[]>([
-    {
-      id: 'doc-1',
-      name: 'Tesla_2025_Annual_Report_10K.pdf',
-      format: 'PDF',
-      size: '4.8 MB',
-      status: 'ready',
-      date: 'Aug 27, 2026',
-      summary: 'Annual 10-K filing containing FY2025 financial statements, automotive delivery margins, and energy storage performance.',
-      previewText: 'ITEM 7. MANAGEMENT DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION. Automotive gross margin expanded to 19.8% with total revenues reaching $96.77B.'
-    },
-    {
-      id: 'doc-2',
-      name: 'Q4_Cloud_Infrastructure_Costs.xlsx',
-      format: 'Excel',
-      size: '1.2 MB',
-      status: 'ready',
-      date: 'Aug 27, 2026',
-      summary: 'Quarterly compute infrastructure budget across AWS, GCP, and specialized GPU clusters.',
-      previewText: 'Cluster US-EAST-VA-09: 64x H100 GPU compute burn rate $41,200/mo. Average utilization 94.2%.'
-    },
-    {
-      id: 'doc-3',
-      name: 'System_Architecture_Overview.md',
-      format: 'Markdown',
-      size: '340 KB',
-      status: 'ready',
-      date: 'Aug 26, 2026',
-      summary: 'Core engineering specification for microservices, API contracts, and message queues.',
-      previewText: 'Architecture spec detailing distributed ingestion workers, semantic chunking boundaries, and fault-tolerant resumes.'
-    }
-  ]);
-
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([
-    { id: 'sess-1', title: 'Tesla FY2025 Revenue Analysis' },
-    { id: 'sess-2', title: 'Cloud Infrastructure Spend' }
-  ]);
-  const [currentSessionId, setCurrentSessionId] = useState<string>('sess-1');
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string>('');
 
   useEffect(() => {
     const verifySession = async () => {
@@ -204,8 +169,6 @@ function App() {
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             docCount={documents.length}
-            isSidebarCollapsed={isSidebarCollapsed}
-            onToggleSidebar={() => setIsSidebarCollapsed(prev => !prev)}
           />
 
           <div className="app-content-stage">

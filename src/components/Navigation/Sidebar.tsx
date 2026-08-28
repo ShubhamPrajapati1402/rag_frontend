@@ -13,7 +13,8 @@ import {
   Moon, 
   X,
   Keyboard,
-  Check
+  Check,
+  ChevronsUpDown
 } from 'lucide-react';
 import { ChatSession, ThemeType, UserProfile } from '../../types';
 import './Sidebar.css';
@@ -87,112 +88,129 @@ export default function Sidebar({
   return (
     <>
       <aside className={`chatgpt-sidebar-root ${isCollapsed ? 'collapsed' : ''}`}>
-        {/* Top Header Row */}
-        {!isCollapsed ? (
-          <div className="sidebar-brand-header">
-            <span className="sidebar-brand-title">Noesis</span>
-            <div className="brand-header-actions">
-              <button 
-                className="sidebar-action-btn" 
-                onClick={onOpenCommandPalette} 
-                title="Search (Ctrl+K)"
-              >
-                <Search size={16} />
-              </button>
-              <button 
-                className="sidebar-action-btn" 
-                onClick={onNewSession} 
-                title="New Chat"
-              >
-                <SquarePen size={16} />
-              </button>
-              <button 
-                className="sidebar-action-btn" 
-                onClick={onToggleCollapse} 
-                title="Collapse Sidebar (Ctrl+B)"
-              >
-                <PanelLeftClose size={16} />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="sidebar-collapsed-header">
+        {isCollapsed ? (
+          /* Collapsed State: Single Clean Vertical Stack of Icon Buttons */
+          <div className="collapsed-vertical-stack">
             <button 
               className="sidebar-action-btn" 
               onClick={onToggleCollapse} 
               title="Expand Sidebar (Ctrl+B)"
             >
-              <PanelLeftOpen size={16} />
+              <PanelLeftOpen size={17} />
             </button>
             <button 
               className="sidebar-action-btn" 
               onClick={onNewSession} 
               title="New Chat"
             >
-              <SquarePen size={16} />
+              <SquarePen size={17} />
+            </button>
+            <button 
+              className="sidebar-action-btn" 
+              onClick={onOpenCommandPalette} 
+              title="Search (Ctrl+K)"
+            >
+              <Search size={17} />
+            </button>
+            <button 
+              className="sidebar-action-btn" 
+              onClick={onOpenDocManager} 
+              title={`Projects (${docCount})`}
+            >
+              <FolderOpen size={17} />
             </button>
           </div>
-        )}
+        ) : (
+          /* Expanded State: Full ChatGPT-style Layout */
+          <>
+            {/* Top Header Row */}
+            <div className="sidebar-brand-header">
+              <div className="sidebar-brand-left">
+                <span className="sidebar-brand-title">Noesis<span className="brand-reg">®</span></span>
+              </div>
+              <div className="brand-header-actions">
+                <button 
+                  className="sidebar-action-btn" 
+                  onClick={onToggleCollapse} 
+                  title="Collapse Sidebar (Ctrl+B)"
+                >
+                  <PanelLeftClose size={17} />
+                </button>
+              </div>
+            </div>
 
-        {/* Primary Action Button */}
-        <div className="sidebar-action-container">
-          <button className="sidebar-new-chat-row" onClick={onNewSession}>
-            <SquarePen size={15} />
-            {!isCollapsed && <span>New chat</span>}
-          </button>
-        </div>
+            {/* Search Bar Row (Ctrl+K) */}
+            <div 
+              className="sidebar-search-bar"
+              onClick={onOpenCommandPalette}
+              title="Search chats (Ctrl+K)"
+            >
+              <Search size={14} className="sidebar-search-icon" />
+              <span className="sidebar-search-placeholder">Search</span>
+              <kbd className="sidebar-kbd">Ctrl K</kbd>
+            </div>
 
-        {/* Navigation Section Tabs */}
-        <div className="sidebar-nav-section">
-          <button className="sidebar-nav-item" onClick={onOpenDocManager}>
-            <FolderOpen size={15} />
-            {!isCollapsed && (
-              <>
-                <span className="nav-item-label">Knowledge Base</span>
+            {/* Primary Action Button */}
+            <div className="sidebar-action-container">
+              <button className="sidebar-new-chat-row" onClick={onNewSession}>
+                <SquarePen size={15} />
+                <span>New chat</span>
+              </button>
+            </div>
+
+            {/* Navigation Section Tabs */}
+            <div className="sidebar-nav-section">
+              <button className="sidebar-nav-item" onClick={onOpenDocManager}>
+                <FolderOpen size={15} />
+                <span className="nav-item-label">Projects</span>
                 <span className="nav-item-badge">{docCount}</span>
-              </>
-            )}
-          </button>
-        </div>
+              </button>
+            </div>
+          </>
+        )}
 
         {/* Chat History Section */}
         {!isCollapsed && (
           <div className="sidebar-history-pane">
-            <div className="history-section-header">
-              <span>Recent Conversations</span>
-            </div>
+            {chatSessions.length > 0 ? (
+              <>
+                <div className="history-section-header">
+                  <span>PREVIOUS 7 DAYS</span>
+                </div>
 
-            <div className="history-items-scroll">
-              {chatSessions.map(session => {
-                const isActive = session.id === currentSessionId;
-                const isHovered = session.id === hoveredSessionId;
+                <div className="history-items-scroll">
+                  {chatSessions.map(session => {
+                    const isActive = session.id === currentSessionId;
+                    const isHovered = session.id === hoveredSessionId;
 
-                return (
-                  <div
-                    key={session.id}
-                    className={`history-row-item ${isActive ? 'active' : ''}`}
-                    onClick={() => onSelectSession(session.id)}
-                    onMouseEnter={() => setHoveredSessionId(session.id)}
-                    onMouseLeave={() => setHoveredSessionId(null)}
-                  >
-                    <span className="history-item-title">{session.title}</span>
-
-                    {(isHovered || isActive) && (
-                      <button
-                        className="history-delete-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSessionToDelete(session);
-                        }}
-                        title="Delete chat"
+                    return (
+                      <div
+                        key={session.id}
+                        className={`history-row-item ${isActive ? 'active' : ''}`}
+                        onClick={() => onSelectSession(session.id)}
+                        onMouseEnter={() => setHoveredSessionId(session.id)}
+                        onMouseLeave={() => setHoveredSessionId(null)}
                       >
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                        <span className="history-item-title">{session.title}</span>
+
+                        {(isHovered || isActive) && (
+                          <button
+                            className="history-delete-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSessionToDelete(session);
+                            }}
+                            title="Delete chat"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : null}
           </div>
         )}
 
@@ -203,26 +221,33 @@ export default function Sidebar({
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             title="User Profile"
           >
-            <div className="user-avatar-circle">
-              {userAvatar ? (
-                <img 
-                  src={userAvatar} 
-                  alt={userName || 'User'} 
-                  className="user-avatar-img"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = 'none';
-                  }}
-                />
-              ) : (
-                <span>{userInitial}</span>
-              )}
-            </div>
-            {!isCollapsed && (
-              <div className="user-info-text">
-                <span className="user-name">{userName || userEmail || 'Account'}</span>
-                {userEmail && <span className="user-email-text">{userEmail}</span>}
+            <div className="user-avatar-wrap">
+              <div className="user-avatar-circle">
+                {userAvatar ? (
+                  <img 
+                    src={userAvatar} 
+                    alt={userName || 'User'} 
+                    className="user-avatar-img"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <span>{userInitial}</span>
+                )}
               </div>
+              <span className="user-status-dot-active"></span>
+            </div>
+
+            {!isCollapsed && (
+              <>
+                <div className="user-info-text">
+                  <span className="user-name">{userName || userEmail || 'Account'}</span>
+                  {userEmail && <span className="user-email-text">{userEmail}</span>}
+                </div>
+                <ChevronsUpDown size={14} className="user-profile-chevron" />
+              </>
             )}
           </button>
 

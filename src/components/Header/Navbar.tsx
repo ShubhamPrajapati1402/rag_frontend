@@ -1,4 +1,4 @@
-import { ChevronDown, Sun, Moon, MessageSquare, FolderOpen, PanelLeftOpen } from 'lucide-react';
+import { ChevronDown, Sun, Moon, MessageSquare, FolderOpen } from 'lucide-react';
 import { ThemeType } from '../../types';
 import './Navbar.css';
 
@@ -8,8 +8,6 @@ interface NavbarProps {
   activeTab: 'chat' | 'documents';
   setActiveTab: (tab: 'chat' | 'documents') => void;
   docCount: number;
-  isSidebarCollapsed?: boolean;
-  onToggleSidebar?: () => void;
 }
 
 export default function Navbar({ 
@@ -17,24 +15,12 @@ export default function Navbar({
   onToggleTheme, 
   activeTab, 
   setActiveTab, 
-  docCount,
-  isSidebarCollapsed,
-  onToggleSidebar
+  docCount 
 }: NavbarProps) {
   return (
     <header className="chatgpt-top-header">
       {/* Left: ChatGPT Model Selector Pill */}
       <div className="header-left">
-        {isSidebarCollapsed && onToggleSidebar && (
-          <button 
-            className="navbar-sidebar-toggle-btn"
-            onClick={onToggleSidebar}
-            title="Open Sidebar (Ctrl+B)"
-          >
-            <PanelLeftOpen size={16} />
-          </button>
-        )}
-
         <div className="model-selector-pill">
           <span className="model-title">Noesis RAG</span>
           <ChevronDown size={14} className="model-chevron" />
