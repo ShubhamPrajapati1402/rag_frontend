@@ -84,8 +84,11 @@ rag_frontend/
 │   │   ├── Header/           # Top Navbar & Model Selector
 │   │   ├── Ingestion/        # Document Ingestion Hub & File Tables
 │   │   └── Navigation/       # Sidebar, History, & User Profile
+│   ├── services/
+│   │   └── authApi.ts        # Noesis Backend Auth API Client (JWT & HttpOnly Cookies)
 │   ├── types/
 │   │   └── index.ts          # Shared TypeScript Interfaces & Types
+│   ├── vite-env.d.ts         # Vite Environment Type Declarations
 │   ├── App.tsx               # Root App State & Route Controller
 │   ├── main.tsx              # Application Entry Point
 │   └── index.css             # Global Theme Tokens & Typography
