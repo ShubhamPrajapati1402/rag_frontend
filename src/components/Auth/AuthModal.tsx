@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Brain, 
   ArrowRight, 
@@ -9,9 +9,12 @@ import {
   Eye, 
   EyeOff, 
   User,
-  AlertCircle
+  AlertCircle,
+  KeyRound,
+  RotateCw
 } from 'lucide-react';
 import { UserProfile } from '../../types';
+import { authApi } from '../../services/authApi';
 import '../Chat/ChatStudio.css';
 import './AuthModal.css';
 
@@ -27,10 +30,34 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'otp' | 'forgot'>('signin');
   const [resetSent, setResetSent] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
+
+  // 6-digit OTP state
+  const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [resendTimer, setResendTimer] = useState<number>(30);
+  const [canResend, setCanResend] = useState<boolean>(false);
+
+  // OTP Countdown timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (authMode === 'otp' && resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer(prev => {
+          if (prev <= 1) {
+            setCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [authMode, resendTimer]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -43,55 +70,188 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     e.preventDefault();
   };
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleOtpChange = (index: number, value: string) => {
+    // Only accept numeric inputs
+    if (value && !/^\d+$/.test(value)) return;
+
+    const newDigits = [...otpDigits];
+    newDigits[index] = value.slice(-1); // Take latest single digit
+    setOtpDigits(newDigits);
+
+    // Auto advance focus
+    if (value && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').trim();
+    if (/^\d{6}$/.test(pastedData)) {
+      const digits = pastedData.split('');
+      setOtpDigits(digits);
+      otpInputRefs.current[5]?.focus();
+    }
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setErrorMessage(null);
+    setSuccessMessage(null);
 
-    if (authMode === 'signup' && password !== confirmPassword) {
-      setErrorMessage('Passwords do not match. Please re-enter.');
-      return;
-    }
-
-    setIsLoading(true);
-
+    // 1. Password Reset Mode
     if (authMode === 'forgot') {
-      setTimeout(() => {
-        setIsLoading(false);
+      if (!email.trim()) {
+        setErrorMessage('Please enter your email address.');
+        return;
+      }
+      setIsLoading(true);
+      try {
+        await new Promise(res => setTimeout(res, 600));
         setResetSent(true);
-      }, 600);
+      } catch (err: any) {
+        setErrorMessage(err.message || 'Failed to request password reset.');
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
-    setTimeout(() => {
-      setIsLoading(false);
-      const userDisplayName = authMode === 'signup' 
-        ? (name.trim() || 'New User') 
-        : (email.includes('@') ? email.split('@')[0].replace(/[._]/g, ' ') : 'Shubham Prajapati');
+    // 2. OTP Verification Mode
+    if (authMode === 'otp') {
+      const fullOtp = otpDigits.join('');
+      if (fullOtp.length !== 6) {
+        setErrorMessage('Please enter the complete 6-digit verification code.');
+        return;
+      }
 
-      onLogin({
-        name: userDisplayName.charAt(0).toUpperCase() + userDisplayName.slice(1),
-        email: email.trim() || 'user@example.com',
-        role: 'Pro Workspace'
-      });
-    }, 600);
+      setIsLoading(true);
+      try {
+        await authApi.verifyOtp(email, fullOtp);
+        const me = await authApi.getMe();
+        onLogin(me || {
+          name: name || email.split('@')[0],
+          email: email,
+          role: 'Pro Workspace'
+        });
+      } catch (err: any) {
+        setErrorMessage(err.message || 'Invalid or expired OTP. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // 3. Sign Up Mode (Triggers 6-digit OTP email)
+    if (authMode === 'signup') {
+      if (!name.trim()) {
+        setErrorMessage('Please enter your full name.');
+        return;
+      }
+      if (!email.trim()) {
+        setErrorMessage('Please enter your email address.');
+        return;
+      }
+      if (password.length < 6) {
+        setErrorMessage('Password must be at least 6 characters.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setErrorMessage('Passwords do not match. Please re-enter.');
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        await authApi.signup(name, email, password);
+        setSuccessMessage(`A 6-digit verification code has been sent to ${email}`);
+        setAuthMode('otp');
+        setResendTimer(30);
+        setCanResend(false);
+        setOtpDigits(['', '', '', '', '', '']);
+      } catch (err: any) {
+        setErrorMessage(err.message || 'Signup failed. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // 4. Sign In Mode (Direct login with cookie)
+    if (authMode === 'signin') {
+      if (!email.trim() || !password.trim()) {
+        setErrorMessage('Please enter both email and password.');
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        await authApi.login(email, password);
+        const me = await authApi.getMe();
+        onLogin(me || {
+          name: email.split('@')[0],
+          email: email,
+          role: 'Pro Workspace'
+        });
+      } catch (err: any) {
+        setErrorMessage(err.message || 'Invalid email or password.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
-  const handleGoogleSignIn = () => {
+  const handleResendOtp = async () => {
+    if (!canResend) return;
+    setErrorMessage(null);
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      await authApi.resendOtp(email);
+      setSuccessMessage('A fresh 6-digit verification code has been sent to your email.');
+      setResendTimer(30);
+      setCanResend(false);
+      setOtpDigits(['', '', '', '', '', '']);
+      otpInputRefs.current[0]?.focus();
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to resend code.');
+    } finally {
       setIsLoading(false);
-      onLogin({
-        name: 'Shubham Prajapati',
-        email: 'shubham.prajapati@google.com',
-        role: 'Pro Workspace'
-      });
-    }, 600);
+    }
   };
 
-  const switchMode = (mode: 'signin' | 'signup' | 'forgot') => {
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      // Simulate Google OAuth token flow or call endpoint
+      const me = await authApi.getMe();
+      if (me) {
+        onLogin(me);
+      } else {
+        onLogin({
+          name: 'Shubham Prajapati',
+          email: 'shubham.prajapati@google.com',
+          role: 'Pro Workspace'
+        });
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Google sign in failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const switchMode = (mode: 'signin' | 'signup' | 'forgot' | 'otp') => {
     setAuthMode(mode);
     setResetSent(false);
     setErrorMessage(null);
+    setSuccessMessage(null);
   };
 
   return (
@@ -103,23 +263,20 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         '--mouse-y': `${mousePos.y}%`
       } as React.CSSProperties}
     >
-      {/* Background Interactive Ambient Lighting & Grid */}
+      {/* Ambient Spotlight & Grid */}
       <div className="auth-ambient-spotlight"></div>
       <div className="auth-grid-pattern"></div>
 
       <div className="auth-card-box anim-slide-up">
-        {/* Branding & 3D Gyroscopic Solar Core (Identical to ChatStudio) */}
+        {/* Branding & 3D Gyroscopic Solar Core */}
         <div className="auth-brand-badge">
           <div className="neural-3d-scene auth-3d-emblem">
-            {/* Central Volumetric 3D Sphere */}
             <div className="volumetric-3d-sphere">
               <Brain size={22} className="sphere-brain-hologram" />
             </div>
 
-            {/* Interactive 3D Rotator Wrapper */}
             <div className="interactive-3d-rotator">
               <div className="neural-3d-floating-system">
-                {/* 1. Horizontal Equatorial Ring (0°) */}
                 <div className="gyro-3d-ring gyro-equatorial">
                   <div className="planet-revolver rev-eq">
                     <div className="orbit-planet">
@@ -130,7 +287,6 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   </div>
                 </div>
 
-                {/* 2. +45° Tilted Ring from Right Side */}
                 <div className="gyro-3d-ring gyro-tilt-pos">
                   <div className="planet-revolver rev-pos">
                     <div className="orbit-planet">
@@ -141,7 +297,6 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   </div>
                 </div>
 
-                {/* 3. -45° Tilted Ring from Left Side */}
                 <div className="gyro-3d-ring gyro-tilt-neg">
                   <div className="planet-revolver rev-neg">
                     <div className="orbit-planet">
@@ -152,7 +307,6 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   </div>
                 </div>
 
-                {/* 4. 90° Polar Ring Perpendicular to Equatorial Ring */}
                 <div className="gyro-3d-ring gyro-polar-90">
                   <div className="planet-revolver rev-polar">
                     <div className="orbit-planet">
@@ -165,7 +319,6 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
               </div>
             </div>
 
-            {/* Ground Floor Shadow */}
             <div className="neural-3d-floor-shadow"></div>
           </div>
 
@@ -174,8 +327,96 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         </div>
 
         <div className="auth-form-card">
-          {authMode === 'forgot' ? (
-            /* Forgot Password Workflow */
+          {/* 1. OTP Verification Mode */}
+          {authMode === 'otp' ? (
+            <div className="auth-otp-pane anim-fade-in">
+              <div className="auth-header-text">
+                <div className="otp-icon-badge">
+                  <KeyRound size={20} className="text-indigo-500" />
+                </div>
+                <h3>Verify your email</h3>
+                <p>
+                  Enter the 6-digit verification code sent to <strong>{email}</strong>
+                </p>
+              </div>
+
+              {errorMessage && (
+                <div className="auth-error-banner anim-slide-up">
+                  <AlertCircle size={14} className="error-icon" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="auth-success-banner anim-slide-up">
+                  <CheckCircle2 size={14} className="success-icon" />
+                  <span>{successMessage}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="auth-input-form">
+                <div className="otp-boxes-wrapper" onPaste={handleOtpPaste}>
+                  {otpDigits.map((digit, idx) => (
+                    <input
+                      key={idx}
+                      ref={el => {
+                        otpInputRefs.current[idx] = el;
+                      }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={e => handleOtpChange(idx, e.target.value)}
+                      onKeyDown={e => handleOtpKeyDown(idx, e)}
+                      className={`otp-digit-box ${digit ? 'filled' : ''}`}
+                      autoFocus={idx === 0}
+                    />
+                  ))}
+                </div>
+
+                <button type="submit" className="auth-primary-submit-btn" disabled={isLoading}>
+                  {isLoading ? (
+                    <span className="auth-spinner"></span>
+                  ) : (
+                    <>
+                      <span>Verify & Continue</span>
+                      <ArrowRight size={15} />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="otp-resend-row">
+                {canResend ? (
+                  <button 
+                    type="button" 
+                    className="otp-resend-btn active"
+                    onClick={handleResendOtp}
+                    disabled={isLoading}
+                  >
+                    <RotateCw size={13} />
+                    <span>Resend verification code</span>
+                  </button>
+                ) : (
+                  <span className="otp-timer-text">
+                    Resend code in <strong>{resendTimer}s</strong>
+                  </span>
+                )}
+              </div>
+
+              <div className="auth-toggle-footer">
+                <button 
+                  type="button" 
+                  className="auth-back-btn"
+                  onClick={() => switchMode('signup')}
+                >
+                  <ArrowLeft size={13} />
+                  <span>Back to Sign Up</span>
+                </button>
+              </div>
+            </div>
+          ) : authMode === 'forgot' ? (
+            /* 2. Forgot Password Mode */
             resetSent ? (
               <div className="auth-reset-success-pane anim-fade-in">
                 <div className="reset-success-icon-box">
@@ -200,6 +441,13 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   <h3>Reset password</h3>
                   <p>Enter your email and we will send you a link to reset your account password.</p>
                 </div>
+
+                {errorMessage && (
+                  <div className="auth-error-banner anim-slide-up">
+                    <AlertCircle size={14} className="error-icon" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="auth-input-form">
                   <div className="auth-field-group">
@@ -243,7 +491,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
               </div>
             )
           ) : (
-            /* Sign In / Sign Up Form */
+            /* 3. Sign In & Sign Up Modes */
             <>
               <div className="auth-header-text">
                 <h3>{authMode === 'signin' ? 'Welcome back' : 'Create an account'}</h3>
@@ -254,7 +502,6 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 </p>
               </div>
 
-              {/* Error Message Banner */}
               {errorMessage && (
                 <div className="auth-error-banner anim-slide-up">
                   <AlertCircle size={14} className="error-icon" />
@@ -262,7 +509,13 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 </div>
               )}
 
-              {/* Email & Password Form */}
+              {successMessage && (
+                <div className="auth-success-banner anim-slide-up">
+                  <CheckCircle2 size={14} className="success-icon" />
+                  <span>{successMessage}</span>
+                </div>
+              )}
+
               <form onSubmit={handleSubmit} className="auth-input-form">
                 {authMode === 'signup' && (
                   <div className="auth-field-group anim-slide-up">
@@ -371,7 +624,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                     <span className="auth-spinner"></span>
                   ) : (
                     <>
-                      <span>{authMode === 'signin' ? 'Sign In' : 'Create Account'}</span>
+                      <span>{authMode === 'signin' ? 'Sign In' : 'Create Account & Send Code'}</span>
                       <ArrowRight size={15} />
                     </>
                   )}
@@ -382,7 +635,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 <span>OR CONTINUE WITH</span>
               </div>
 
-              {/* Social Sign In Options Below Form */}
+              {/* Google OAuth Button */}
               <div className="auth-social-row">
                 <button 
                   type="button" 
@@ -401,7 +654,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 </button>
               </div>
 
-              {/* Toggle mode */}
+              {/* Mode Toggle */}
               <div className="auth-toggle-footer">
                 <span>
                   {authMode === 'signin' ? "Don't have an account?" : 'Already have an account?'}

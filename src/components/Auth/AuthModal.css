@@ -222,8 +222,114 @@
   font-weight: 500;
 }
 
-.error-icon {
+.auth-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #10b981;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.error-icon,
+.success-icon {
   flex-shrink: 0;
+}
+
+/* OTP Mode Styles */
+.auth-otp-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.otp-icon-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 4px auto;
+}
+
+.otp-boxes-wrapper {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 4px 0 8px 0;
+}
+
+.otp-digit-box {
+  width: 44px;
+  height: 48px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+  background: var(--bg-tertiary, #262626);
+  color: var(--text-primary, #ffffff);
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+[data-theme="light"] .otp-digit-box {
+  background: #f4f4f5;
+  border-color: rgba(0, 0, 0, 0.15);
+  color: #171717;
+}
+
+.otp-digit-box:focus {
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+  transform: translateY(-1px);
+}
+
+.otp-digit-box.filled {
+  border-color: rgba(99, 102, 241, 0.6);
+  background: var(--bg-card, #171717);
+}
+
+[data-theme="light"] .otp-digit-box.filled {
+  background: #ffffff;
+}
+
+.otp-resend-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.otp-timer-text {
+  color: var(--text-tertiary, #737373);
+}
+
+.otp-resend-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--accent, #6366f1);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.otp-resend-btn:hover {
+  text-decoration: underline;
+  color: #818cf8;
 }
 
 .auth-input-form {

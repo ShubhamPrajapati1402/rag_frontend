@@ -15,7 +15,7 @@ import {
   Keyboard,
   Check
 } from 'lucide-react';
-import { ChatSession, ThemeType } from '../../types';
+import { ChatSession, ThemeType, UserProfile } from '../../types';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -32,6 +32,7 @@ interface SidebarProps {
   onToggleTheme: () => void;
   theme: ThemeType;
   onLogout: () => void;
+  userProfile?: UserProfile | null;
 }
 
 export default function Sidebar({ 
@@ -47,7 +48,8 @@ export default function Sidebar({
   docCount,
   onToggleTheme,
   theme,
-  onLogout
+  onLogout,
+  userProfile
 }: SidebarProps) {
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
   const [sessionToDelete, setSessionToDelete] = useState<ChatSession | null>(null);
@@ -202,12 +204,16 @@ export default function Sidebar({
             title="User Profile"
           >
             <div className="user-avatar-circle">
-              <span>SP</span>
+              <span>
+                {userProfile?.name
+                  ? userProfile.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+                  : 'SP'}
+              </span>
             </div>
             {!isCollapsed && (
               <div className="user-info-text">
-                <span className="user-name">Shubham Prajapati</span>
-                <span className="user-plan">Pro Workspace</span>
+                <span className="user-name">{userProfile?.name || 'Shubham Prajapati'}</span>
+                <span className="user-plan">{userProfile?.role || 'Pro Workspace'}</span>
               </div>
             )}
           </button>
@@ -216,8 +222,8 @@ export default function Sidebar({
           {isProfileMenuOpen && (
             <div className="profile-dropdown-menu anim-pop-in">
               <div className="dropdown-user-header">
-                <div className="dropdown-user-name">Shubham Prajapati</div>
-                <div className="dropdown-user-email">shubham@example.com</div>
+                <div className="dropdown-user-name">{userProfile?.name || 'Shubham Prajapati'}</div>
+                <div className="dropdown-user-email">{userProfile?.email || 'shubham@example.com'}</div>
               </div>
 
               <div className="dropdown-divider"></div>

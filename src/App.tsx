@@ -5,6 +5,7 @@ import ChatStudio from './components/Chat/ChatStudio';
 import IngestionHub from './components/Ingestion/IngestionHub';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import AuthModal from './components/Auth/AuthModal';
+import { authApi } from './services/authApi';
 import { ThemeType, DocumentItem, ChatSession, UserProfile } from './types';
 import './App.css';
 
@@ -26,7 +27,12 @@ function getStoredUserTheme(): ThemeType {
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     const saved = localStorage.getItem('noesis_auth');
-    return saved !== 'false'; // Default to authenticated for instant preview
+    return saved !== 'false';
+  });
+
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+    const saved = localStorage.getItem('noesis_user');
+    return saved ? JSON.parse(saved) : null;
   });
 
   // System theme for Login Page; User theme for App Workspace
@@ -76,6 +82,24 @@ function App() {
     { id: 'sess-2', title: 'Cloud Infrastructure Spend' }
   ]);
   const [currentSessionId, setCurrentSessionId] = useState<string>('sess-1');
+
+  // Verify active backend session cookie on initial app mount
+  useEffect(() => {
+    const verifySession = async () => {
+      try {
+        const user = await authApi.getMe();
+        if (user) {
+          setIsAuthenticated(true);
+          setUserProfile(user);
+          localStorage.setItem('noesis_auth', 'true');
+          localStorage.setItem('noesis_user', JSON.stringify(user));
+        }
+      } catch (err) {
+        console.log('Session verification checked:', err);
+      }
+    };
+    verifySession();
+  }, []);
 
   // Continuous listener for OS System Theme changes
   useEffect(() => {
@@ -128,15 +152,19 @@ function App() {
 
   const handleLogin = (user: UserProfile) => {
     setIsAuthenticated(true);
+    setUserProfile(user);
     localStorage.setItem('noesis_auth', 'true');
     if (user) {
       localStorage.setItem('noesis_user', JSON.stringify(user));
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authApi.logout();
     setIsAuthenticated(false);
+    setUserProfile(null);
     localStorage.setItem('noesis_auth', 'false');
+    localStorage.removeItem('noesis_user');
   };
 
   const handleNewSession = () => {
@@ -179,6 +207,7 @@ function App() {
         onToggleTheme={handleToggleTheme}
         theme={userTheme}
         onLogout={handleLogout}
+        userProfile={userProfile}
       />
 
       {/* Main Viewport */}
