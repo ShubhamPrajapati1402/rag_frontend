@@ -40,6 +40,57 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [cooldown, setCooldown] = useState<number>(60);
+  const googleBtnContainerRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Google Identity Services & Render Official Button
+  useEffect(() => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    
+    const initGsi = () => {
+      if ((window as any).google?.accounts?.id && googleClientId) {
+        try {
+          (window as any).google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: async (response: any) => {
+              if (!response?.credential) return;
+              setIsLoading(true);
+              setErrorMessage(null);
+              try {
+                await authApi.googleLogin(response.credential);
+                const me = await authApi.getMe();
+                onLogin(me || {
+                  name: 'User',
+                  email: '',
+                });
+              } catch (err: any) {
+                setErrorMessage(err.message || 'Google authentication failed.');
+              } finally {
+                setIsLoading(false);
+              }
+            },
+          });
+
+          if (googleBtnContainerRef.current) {
+            googleBtnContainerRef.current.innerHTML = '';
+            (window as any).google.accounts.id.renderButton(googleBtnContainerRef.current, {
+              theme: 'filled_black',
+              size: 'large',
+              type: 'standard',
+              shape: 'rectangular',
+              text: 'continue_with',
+              width: 320,
+              logo_alignment: 'left',
+            });
+          }
+        } catch (err) {
+          console.warn('GSI render notice:', err);
+        }
+      }
+    };
+
+    const timer = setTimeout(initGsi, 200);
+    return () => clearTimeout(timer);
+  }, [authMode, onLogin]);
 
   // 60-Second OTP Countdown timer
   useEffect(() => {
@@ -219,43 +270,9 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     }
   };
 
-  // Google Sign-In (Triggered ONLY when user explicitly clicks "Sign in with Google")
-  const handleGoogleSignIn = () => {
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!(window as any).google?.accounts?.id) {
-      setErrorMessage('Google Services is loading. Please try again in a few seconds.');
-      return;
-    }
-
-    try {
-      (window as any).google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: async (response: any) => {
-          if (!response?.credential) {
-            setErrorMessage('Google authentication cancelled or credential not received.');
-            return;
-          }
-          setIsLoading(true);
-          setErrorMessage(null);
-          try {
-            await authApi.googleLogin(response.credential);
-            const me = await authApi.getMe();
-            onLogin(me || {
-              name: 'User',
-              email: '',
-            });
-          } catch (err: any) {
-            setErrorMessage(err.message || 'Google authentication failed.');
-          } finally {
-            setIsLoading(false);
-          }
-        },
-      });
-
-      // Prompt Google authentication on click
+  const handleCustomGoogleClick = () => {
+    if ((window as any).google?.accounts?.id) {
       (window as any).google.accounts.id.prompt();
-    } catch (err: any) {
-      setErrorMessage('Failed to initialize Google Sign In.');
     }
   };
 
@@ -600,23 +617,28 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 <span>OR CONTINUE WITH</span>
               </div>
 
-              {/* Google OAuth Button */}
-              <div className="auth-social-row">
-                <button 
-                  type="button" 
-                  className="auth-google-btn"
-                  onClick={handleGoogleSignIn}
-                  disabled={isLoading}
-                  title="Sign in with Google"
+              {/* Official Google Identity Button Container */}
+              <div className="auth-social-row" style={{ display: 'flex', justifyContent: 'center', minHeight: '44px' }}>
+                <div 
+                  id="google-signin-btn-container" 
+                  ref={googleBtnContainerRef} 
+                  style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
                 >
-                  <svg className="google-svg-icon" viewBox="0 0 24 24" width="17" height="17">
-                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.36 7.35 24 12 24z"/>
-                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
-                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.27 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-                  </svg>
-                  <span>Sign in with Google</span>
-                </button>
+                  <button 
+                    type="button" 
+                    className="auth-google-btn"
+                    onClick={handleCustomGoogleClick}
+                    disabled={isLoading}
+                  >
+                    <svg className="google-svg-icon" viewBox="0 0 24 24" width="17" height="17">
+                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.36 7.35 24 12 24z"/>
+                      <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
+                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.27 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                    </svg>
+                    <span>Sign in with Google</span>
+                  </button>
+                </div>
               </div>
 
               {/* Mode Toggle */}
