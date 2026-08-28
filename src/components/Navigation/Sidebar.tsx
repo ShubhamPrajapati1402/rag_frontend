@@ -408,7 +408,7 @@ export default function Sidebar({
               </button>
             </div>
             <p className="delete-modal-desc">
-              Are you sure you want to log out of <strong>Shubham Prajapati</strong> (Pro Workspace)? You will need to authenticate again to access your indexed documents and private chat sessions.
+              Are you sure you want to log out of <strong>{userName || userEmail || 'your account'}</strong>? You will need to authenticate again to access your indexed documents and private chat sessions.
             </p>
             <div className="delete-modal-actions">
               <button className="btn-cancel" onClick={() => setIsLogoutModalOpen(false)}>

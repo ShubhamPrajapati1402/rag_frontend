@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { 
   Brain, 
   ArrowRight, 
@@ -52,7 +52,6 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     return () => clearInterval(interval);
   }, [authMode, cooldown]);
 
-  // Format cooldown helper (e.g. 0:59s, 0:08s)
   const formatCooldown = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -71,14 +70,12 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   };
 
   const handleOtpChange = (index: number, value: string) => {
-    // Only accept numeric inputs
     if (value && !/^\d+$/.test(value)) return;
 
     const newDigits = [...otpDigits];
-    newDigits[index] = value.slice(-1); // Take latest single digit
+    newDigits[index] = value.slice(-1);
     setOtpDigits(newDigits);
 
-    // Auto advance focus
     if (value && index < 5) {
       otpInputRefs.current[index + 1]?.focus();
     }
@@ -138,7 +135,6 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         onLogin(me || {
           name: name || email.split('@')[0],
           email: email,
-          role: 'Pro Workspace'
         });
       } catch (err: any) {
         setErrorMessage(err.message || 'Invalid or expired OTP. Please try again.');
@@ -196,7 +192,6 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         onLogin(me || {
           name: email.split('@')[0],
           email: email,
-          role: 'Pro Workspace'
         });
       } catch (err: any) {
         setErrorMessage(err.message || 'Invalid email or password.');
@@ -208,6 +203,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
 
   const handleResendOtp = async () => {
     if (cooldown > 0 || isLoading) return;
+
     setErrorMessage(null);
     setIsLoading(true);
     try {
@@ -223,25 +219,43 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
+  // Google Sign-In (Triggered ONLY when user explicitly clicks "Sign in with Google")
+  const handleGoogleSignIn = () => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!(window as any).google?.accounts?.id) {
+      setErrorMessage('Google Services is loading. Please try again in a few seconds.');
+      return;
+    }
+
     try {
-      // Simulate Google OAuth token flow or call endpoint
-      const me = await authApi.getMe();
-      if (me) {
-        onLogin(me);
-      } else {
-        onLogin({
-          name: 'Shubham Prajapati',
-          email: 'shubham.prajapati@google.com',
-          role: 'Pro Workspace'
-        });
-      }
+      (window as any).google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async (response: any) => {
+          if (!response?.credential) {
+            setErrorMessage('Google authentication cancelled or credential not received.');
+            return;
+          }
+          setIsLoading(true);
+          setErrorMessage(null);
+          try {
+            await authApi.googleLogin(response.credential);
+            const me = await authApi.getMe();
+            onLogin(me || {
+              name: 'User',
+              email: '',
+            });
+          } catch (err: any) {
+            setErrorMessage(err.message || 'Google authentication failed.');
+          } finally {
+            setIsLoading(false);
+          }
+        },
+      });
+
+      // Prompt Google authentication on click
+      (window as any).google.accounts.id.prompt();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Google sign in failed.');
-    } finally {
-      setIsLoading(false);
+      setErrorMessage('Failed to initialize Google Sign In.');
     }
   };
 
@@ -272,69 +286,24 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
             <div className="volumetric-3d-sphere">
               <Brain size={22} className="sphere-brain-hologram" />
             </div>
-
-            <div className="interactive-3d-rotator">
-              <div className="neural-3d-floating-system">
-                <div className="gyro-3d-ring gyro-equatorial">
-                  <div className="planet-revolver rev-eq">
-                    <div className="orbit-planet">
-                      <div className="sub-moon-orbit moon-orbit-eq">
-                        <div className="sub-moon"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="gyro-3d-ring gyro-tilt-pos">
-                  <div className="planet-revolver rev-pos">
-                    <div className="orbit-planet">
-                      <div className="sub-moon-orbit moon-orbit-pos">
-                        <div className="sub-moon"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="gyro-3d-ring gyro-tilt-neg">
-                  <div className="planet-revolver rev-neg">
-                    <div className="orbit-planet">
-                      <div className="sub-moon-orbit moon-orbit-neg">
-                        <div className="sub-moon"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="gyro-3d-ring gyro-polar-90">
-                  <div className="planet-revolver rev-polar">
-                    <div className="orbit-planet">
-                      <div className="sub-moon-orbit moon-orbit-polar">
-                        <div className="sub-moon"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="neural-3d-floor-shadow"></div>
           </div>
-
           <h2>Noesis</h2>
-          <span className="auth-tagline">Autonomous Multi-Modal RAG Platform</span>
+          <span className="auth-badge-sub">Autonomous Multi-Modal RAG Platform</span>
         </div>
 
-        <div className="auth-form-card">
-          {/* 1. OTP Verification Mode */}
+        {/* Content Container */}
+        <div className="auth-card-inner">
           {authMode === 'otp' ? (
-            <div className="auth-otp-pane anim-fade-in">
-              <div className="auth-header-text">
-                <div className="otp-icon-badge">
-                  <KeyRound size={20} className="text-indigo-500" />
+            /* 1. OTP Verification Mode */
+            <div className="auth-otp-view anim-fade-in">
+              <div className="auth-otp-header">
+                <div className="auth-otp-icon-wrap">
+                  <KeyRound size={22} className="auth-key-icon" />
                 </div>
                 <h3>Verify your email</h3>
                 <p>
-                  Enter the 6-digit verification code sent to <strong>{email}</strong>
+                  Enter the 6-digit verification code sent to <br />
+                  <strong>{email}</strong>
                 </p>
               </div>
 
@@ -352,58 +321,59 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="auth-input-form">
-                <div className="otp-boxes-wrapper" onPaste={handleOtpPaste}>
-                  {otpDigits.map((digit, idx) => (
-                    <input
-                      key={idx}
-                      ref={el => {
-                        otpInputRefs.current[idx] = el;
-                      }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={e => handleOtpChange(idx, e.target.value)}
-                      onKeyDown={e => handleOtpKeyDown(idx, e)}
-                      className={`otp-digit-box ${digit ? 'filled' : ''}`}
-                      autoFocus={idx === 0}
-                    />
-                  ))}
-                </div>
+              {/* 6-Digit OTP Input Box Group */}
+              <div className="auth-otp-boxes-row" onPaste={handleOtpPaste}>
+                {otpDigits.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={(el) => { otpInputRefs.current[idx] = el; }}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(idx, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                    className={`auth-otp-box ${digit ? 'filled' : ''}`}
+                    autoFocus={idx === 0}
+                  />
+                ))}
+              </div>
 
-                <button type="submit" className="auth-primary-submit-btn" disabled={isLoading}>
-                  {isLoading ? (
-                    <span className="auth-spinner"></span>
-                  ) : (
-                    <>
-                      <span>Verify & Continue</span>
-                      <ArrowRight size={15} />
-                    </>
-                  )}
-                </button>
-              </form>
+              <button 
+                type="button" 
+                className="auth-primary-submit-btn" 
+                onClick={() => handleSubmit()}
+                disabled={isLoading || otpDigits.join('').length !== 6}
+              >
+                {isLoading ? (
+                  <span className="auth-spinner"></span>
+                ) : (
+                  <>
+                    <span>Verify & Continue</span>
+                    <ArrowRight size={15} />
+                  </>
+                )}
+              </button>
 
-              <div className="otp-resend-row">
-                <button 
-                  type="button" 
-                  className={`otp-resend-btn ${cooldown === 0 ? 'enabled' : 'disabled'}`}
+              <div className="auth-otp-footer">
+                <button
+                  type="button"
+                  className={`auth-resend-btn ${cooldown > 0 ? 'disabled' : ''}`}
                   onClick={handleResendOtp}
                   disabled={cooldown > 0 || isLoading}
                 >
-                  <RotateCw size={13} className={isLoading ? 'auth-spin-icon' : ''} />
+                  <RotateCw size={13} className={isLoading ? 'anim-spin' : ''} />
                   <span>
                     {cooldown > 0 
                       ? `Resend code in ${formatCooldown(cooldown)}` 
                       : 'Resend code'}
                   </span>
                 </button>
-              </div>
 
-              <div className="auth-toggle-footer">
                 <button 
                   type="button" 
-                  className="auth-back-btn"
+                  className="auth-back-link" 
                   onClick={() => switchMode('signup')}
                 >
                   <ArrowLeft size={13} />
@@ -414,28 +384,28 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
           ) : authMode === 'forgot' ? (
             /* 2. Forgot Password Mode */
             resetSent ? (
-              <div className="auth-reset-success-pane anim-fade-in">
-                <div className="reset-success-icon-box">
-                  <CheckCircle2 size={30} className="text-emerald-500" />
+              <div className="auth-reset-success-box anim-fade-in">
+                <div className="auth-success-circle">
+                  <CheckCircle2 size={32} />
                 </div>
                 <h3>Check your email</h3>
                 <p>
-                  We have sent password reset instructions to <strong>{email}</strong>.
+                  We have sent password recovery instructions to <strong>{email}</strong>
                 </p>
                 <button 
                   type="button" 
-                  className="auth-primary-submit-btn"
+                  className="auth-back-btn"
                   onClick={() => switchMode('signin')}
                 >
-                  <ArrowLeft size={15} />
+                  <ArrowLeft size={14} />
                   <span>Return to Sign In</span>
                 </button>
               </div>
             ) : (
-              <div className="auth-forgot-pane anim-fade-in">
+              <div className="auth-forgot-view anim-fade-in">
                 <div className="auth-header-text">
-                  <h3>Reset password</h3>
-                  <p>Enter your email and we will send you a link to reset your account password.</p>
+                  <h3>Reset your password</h3>
+                  <p>Enter your account email to receive reset instructions.</p>
                 </div>
 
                 {errorMessage && (
@@ -447,17 +417,16 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
 
                 <form onSubmit={handleSubmit} className="auth-input-form">
                   <div className="auth-field-group">
-                    <label htmlFor="auth-email">Email address</label>
+                    <label htmlFor="auth-forgot-email">Account email</label>
                     <div className="auth-input-wrapper">
                       <Mail size={15} className="auth-field-icon" />
                       <input 
-                        id="auth-email"
+                        id="auth-forgot-email"
                         type="email" 
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="name@company.com"
                         required
-                        autoFocus
                       />
                     </div>
                   </div>
@@ -467,7 +436,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                       <span className="auth-spinner"></span>
                     ) : (
                       <>
-                        <span>Send Reset Link</span>
+                        <span>Send Instructions</span>
                         <ArrowRight size={15} />
                       </>
                     )}
@@ -477,7 +446,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 <div className="auth-toggle-footer">
                   <button 
                     type="button" 
-                    className="auth-back-btn"
+                    className="auth-back-link" 
                     onClick={() => switchMode('signin')}
                   >
                     <ArrowLeft size={13} />
@@ -523,7 +492,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                         type="text" 
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Shubham Prajapati"
+                        placeholder="e.g. Alex Johnson"
                         autoComplete="name"
                         required
                       />
