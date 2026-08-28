@@ -81,6 +81,7 @@ export default function Sidebar({
   // Derive dynamic user display properties
   const userName = userProfile?.name?.trim() || (userProfile?.email ? userProfile.email.split('@')[0] : '');
   const userEmail = userProfile?.email || '';
+  const userAvatar = userProfile?.avatarUrl || userProfile?.avatar || userProfile?.picture || userProfile?.image || '';
   const userInitial = (userName?.[0] || userEmail?.[0] || 'U').toUpperCase();
 
   return (
@@ -203,7 +204,19 @@ export default function Sidebar({
             title="User Profile"
           >
             <div className="user-avatar-circle">
-              <span>{userInitial}</span>
+              {userAvatar ? (
+                <img 
+                  src={userAvatar} 
+                  alt={userName || 'User'} 
+                  className="user-avatar-img"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <span>{userInitial}</span>
+              )}
             </div>
             {!isCollapsed && (
               <div className="user-info-text">
@@ -217,8 +230,18 @@ export default function Sidebar({
           {isProfileMenuOpen && (
             <div className="profile-dropdown-menu anim-pop-in">
               <div className="dropdown-user-header">
-                <div className="dropdown-user-name">{userName || 'Account'}</div>
-                {userEmail && <div className="dropdown-user-email">{userEmail}</div>}
+                {userAvatar && (
+                  <img 
+                    src={userAvatar} 
+                    alt={userName || 'User'} 
+                    className="dropdown-user-avatar-img"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <div className="dropdown-user-text">
+                  <div className="dropdown-user-name">{userName || 'Account'}</div>
+                  {userEmail && <div className="dropdown-user-email">{userEmail}</div>}
+                </div>
               </div>
 
               <div className="dropdown-divider"></div>

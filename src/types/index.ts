@@ -33,8 +33,12 @@ export interface ChatSession {
 }
 
 export interface UserProfile {
+  id?: string;
   name: string;
   email: string;
-  role: string;
+  role?: string;
   avatarUrl?: string;
+  avatar?: string;
+  picture?: string;
+  image?: string;
 }
