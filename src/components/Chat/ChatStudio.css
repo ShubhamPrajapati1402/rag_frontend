@@ -430,15 +430,67 @@
   justify-content: flex-end;
 }
 
+.user-message-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  max-width: 80%;
+}
+
 .user-message-bubble {
   background: var(--bg-surface);
   color: var(--text-primary);
   border-radius: var(--radius-xl);
   padding: 10px 18px;
-  max-width: 75%;
+  width: 100%;
   font-size: 15px;
   line-height: 1.55;
   word-break: break-word;
+}
+
+.user-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+  padding-right: 6px;
+}
+
+.user-message-group:hover .user-actions-row,
+.chatgpt-msg-row.user:hover .user-actions-row {
+  opacity: 1;
+}
+
+.msg-timestamp {
+  font-size: 11px;
+  color: var(--text-muted, #8e8e8e);
+  font-weight: 400;
+  user-select: none;
+  letter-spacing: 0.01em;
+}
+
+[data-theme="light"] .msg-timestamp {
+  color: #71717a;
+}
+
+.user-copy-btn {
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.user-copy-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-hover);
 }
 
 .ai-message-card {
@@ -547,27 +599,41 @@
 .ai-actions-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 4px;
+  gap: 8px;
+  margin-top: 6px;
 }
 
 .action-icon-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
+  min-width: 30px;
   height: 30px;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.15s ease;
+  padding: 0 6px;
+  transition: all 0.18s ease;
 }
 
 .action-icon-btn:hover {
   background: var(--bg-surface);
   color: var(--text-primary);
+}
+
+/* Compact Active "Copied" Icon Feedback (No Green) */
+.action-icon-btn.is-copied,
+.user-copy-btn.is-copied {
+  color: var(--accent-primary, #6366f1) !important;
+  background: rgba(99, 102, 241, 0.12) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  opacity: 1 !important;
+}
+
+.text-accent {
+  color: var(--accent-primary, #6366f1) !important;
 }
 
 /* Thinking indicator */

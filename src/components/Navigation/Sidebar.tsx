@@ -173,43 +173,97 @@ export default function Sidebar({
         {!isCollapsed && (
           <div className="sidebar-history-pane">
             {chatSessions.length > 0 ? (
-              <>
-                <div className="history-section-header">
-                  <span>PREVIOUS 7 DAYS</span>
-                </div>
+              (() => {
+                // Group sessions dynamically by date periods like ChatGPT
+                const now = new Date();
+                const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                const startOfYesterday = startOfToday - 86400000;
+                const startOf7Days = startOfToday - 7 * 86400000;
+                const startOf30Days = startOfToday - 30 * 86400000;
 
-                <div className="history-items-scroll">
-                  {chatSessions.map(session => {
-                    const isActive = session.id === currentSessionId;
-                    const isHovered = session.id === hoveredSessionId;
+                const groups: { [key: string]: ChatSession[] } = {
+                  'Today': [],
+                  'Yesterday': [],
+                  'Previous 7 Days': [],
+                  'Previous 30 Days': []
+                };
+                const olderGroups: { [key: string]: ChatSession[] } = {};
 
-                    return (
-                      <div
-                        key={session.id}
-                        className={`history-row-item ${isActive ? 'active' : ''}`}
-                        onClick={() => onSelectSession(session.id)}
-                        onMouseEnter={() => setHoveredSessionId(session.id)}
-                        onMouseLeave={() => setHoveredSessionId(null)}
-                      >
-                        <span className="history-item-title">{session.title}</span>
+                for (const session of chatSessions) {
+                  const timeStr = session.updated_at || session.created_at;
+                  const sessionTime = timeStr ? new Date(timeStr).getTime() : startOfToday;
 
-                        {(isHovered || isActive) && (
-                          <button
-                            className="history-delete-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSessionToDelete(session);
-                            }}
-                            title="Delete chat"
+                  if (isNaN(sessionTime) || sessionTime >= startOfToday) {
+                    groups['Today'].push(session);
+                  } else if (sessionTime >= startOfYesterday) {
+                    groups['Yesterday'].push(session);
+                  } else if (sessionTime >= startOf7Days) {
+                    groups['Previous 7 Days'].push(session);
+                  } else if (sessionTime >= startOf30Days) {
+                    groups['Previous 30 Days'].push(session);
+                  } else {
+                    const d = new Date(sessionTime);
+                    const monthYear = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                    if (!olderGroups[monthYear]) {
+                      olderGroups[monthYear] = [];
+                    }
+                    olderGroups[monthYear].push(session);
+                  }
+                }
+
+                const allCategories: { category: string; sessions: ChatSession[] }[] = [];
+                for (const [category, list] of Object.entries(groups)) {
+                  if (list.length > 0) allCategories.push({ category, sessions: list });
+                }
+                for (const [category, list] of Object.entries(olderGroups)) {
+                  if (list.length > 0) allCategories.push({ category, sessions: list });
+                }
+
+                return allCategories.map(({ category, sessions }) => (
+                  <div key={category} className="history-date-group">
+                    <div className="history-section-header">
+                      <span>{category.toUpperCase()}</span>
+                    </div>
+
+                    <div className="history-items-scroll">
+                      {sessions.map(session => {
+                        const isActive = session.id === currentSessionId;
+                        const isHovered = session.id === hoveredSessionId;
+
+                        return (
+                          <div
+                            key={session.id}
+                            className={`history-row-item ${isActive ? 'active' : ''}`}
+                            onClick={() => onSelectSession(session.id)}
+                            onMouseEnter={() => setHoveredSessionId(session.id)}
+                            onMouseLeave={() => setHoveredSessionId(null)}
                           >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
+                            <div className="history-item-title-wrapper">
+                              <div className="history-item-marquee-track">
+                                <span className="history-item-title">{session.title}</span>
+                                <span className="history-item-title-duplicate">{session.title}</span>
+                              </div>
+                            </div>
+
+                            {(isHovered || isActive) && (
+                              <button
+                                className="history-delete-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSessionToDelete(session);
+                                }}
+                                title="Delete chat"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ));
+              })()
             ) : null}
           </div>
         )}

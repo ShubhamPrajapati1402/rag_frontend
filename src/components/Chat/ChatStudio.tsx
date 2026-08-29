@@ -24,6 +24,27 @@ import { DocumentItem, ChatMessage, SourceCitation } from '../../types';
 import { chatApi } from '../../services/chatApi';
 import './ChatStudio.css';
 
+export function formatISTDateTime(dateInput?: string | number | Date): string {
+  if (!dateInput) {
+    dateInput = new Date();
+  }
+  const d = typeof dateInput === 'string' || typeof dateInput === 'number' ? new Date(dateInput) : dateInput;
+  if (isNaN(d.getTime())) return '';
+
+  const options: Intl.DateTimeFormatOptions = {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  };
+
+  const formatted = new Intl.DateTimeFormat('en-IN', options).format(d);
+  return `${formatted} IST`;
+}
+
 interface ChatStudioProps {
   currentSessionId: string;
   onSelectSession: (id: string) => void;
@@ -230,7 +251,8 @@ export default function ChatStudio({
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       type: 'user',
-      content: queryToSend
+      content: queryToSend,
+      createdAt: new Date().toISOString()
     };
 
     setMessages(prev => [...prev, userMsg]);
@@ -300,7 +322,8 @@ export default function ChatStudio({
           id: `ai-${Date.now()}`,
           type: 'ai',
           content: accumulatedText,
-          sources: accumulatedCitations.length > 0 ? accumulatedCitations : undefined
+          sources: accumulatedCitations.length > 0 ? accumulatedCitations : undefined,
+          createdAt: new Date().toISOString()
         };
         setMessages(prev => [...prev, aiMsg]);
       }
@@ -345,9 +368,10 @@ export default function ChatStudio({
   };
 
   const copyText = (text: string, id: number | string) => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
     setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    setTimeout(() => setCopiedId(null), 1800);
   };
 
   return (
@@ -455,14 +479,26 @@ export default function ChatStudio({
           messages.map((msg) => (
             <div key={msg.id} className={`chatgpt-msg-row ${msg.type} anim-slide-up`}>
               {msg.type === 'user' ? (
-                <div className="user-message-bubble anim-slide-up">
-                  {msg.content}
+                <div className="user-message-group anim-slide-up">
+                  <div className="user-message-bubble">
+                    {msg.content}
+                  </div>
+                  <div className="user-actions-row">
+                    <span className="msg-timestamp">{formatISTDateTime(msg.createdAt)}</span>
+                    <button 
+                      className={`action-icon-btn user-copy-btn ${copiedId === msg.id ? 'is-copied' : ''}`} 
+                      onClick={() => copyText(msg.content, msg.id)}
+                      title="Copy question"
+                    >
+                      {copiedId === msg.id ? <Check size={12} className="text-accent" /> : <Copy size={12} />}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="ai-message-card anim-slide-up">
                   {/* Formatted Content */}
                   <div className="ai-markdown-body">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <ReactMarkdown>{msg.content ? msg.content.replace(/\|\|\s*\|?/g, '|\n| ') : ''}</ReactMarkdown>
                   </div>
 
                   {/* Structured Citations */}
@@ -496,12 +532,13 @@ export default function ChatStudio({
 
                   {/* Action Icons */}
                   <div className="ai-actions-row">
+                    <span className="msg-timestamp">{formatISTDateTime(msg.createdAt)}</span>
                     <button 
-                      className="action-icon-btn" 
+                      className={`action-icon-btn ${copiedId === msg.id ? 'is-copied' : ''}`} 
                       onClick={() => copyText(msg.content, msg.id)}
                       title="Copy response"
                     >
-                      {copiedId === msg.id ? <Check size={14} className="text-accent" /> : <Copy size={14} />}
+                      {copiedId === msg.id ? <Check size={13} className="text-accent" /> : <Copy size={13} />}
                     </button>
                     <button className="action-icon-btn" title="Good response"><ThumbsUp size={14} /></button>
                     <button className="action-icon-btn" title="Bad response"><ThumbsDown size={14} /></button>
