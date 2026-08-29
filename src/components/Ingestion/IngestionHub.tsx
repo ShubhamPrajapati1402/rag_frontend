@@ -308,15 +308,17 @@ export default function IngestionHub({ documents, setDocuments, onUpdateDocCount
                 <tbody>
                   {filteredDocs.map((doc) => (
                     <tr key={doc.id} className="doc-table-row">
-                      <td className="cell-doc-name">
-                        <span className="table-file-icon">
-                          {doc.format === 'PDF' && <FileText size={16} className="text-rose-500" />}
-                          {doc.format === 'Excel' && <FileSpreadsheet size={16} className="text-emerald-500" />}
-                          {doc.format === 'CSV' && <FileSpreadsheet size={16} className="text-emerald-500" />}
-                          {doc.format === 'Markdown' && <FileCode size={16} className="text-blue-500" />}
-                          {doc.format !== 'PDF' && doc.format !== 'Excel' && doc.format !== 'CSV' && doc.format !== 'Markdown' && <FileBox size={16} />}
-                        </span>
-                        <span className="name-text-strong" title={doc.name}>{doc.name}</span>
+                      <td>
+                        <div className="cell-doc-name">
+                          <span className="table-file-icon">
+                            {doc.format === 'PDF' && <FileText size={16} className="text-rose-500" />}
+                            {doc.format === 'Excel' && <FileSpreadsheet size={16} className="text-emerald-500" />}
+                            {doc.format === 'CSV' && <FileSpreadsheet size={16} className="text-emerald-500" />}
+                            {doc.format === 'Markdown' && <FileCode size={16} className="text-blue-500" />}
+                            {doc.format !== 'PDF' && doc.format !== 'Excel' && doc.format !== 'CSV' && doc.format !== 'Markdown' && <FileBox size={16} />}
+                          </span>
+                          <span className="name-text-strong" title={doc.name}>{doc.name}</span>
+                        </div>
                       </td>
                       <td>
                         <span className="pill-format">{doc.format}</span>
