@@ -334,29 +334,75 @@ export const chatApi = {
         credentials: 'include'
       });
 
-      if (!res.ok) return null;
+      if (!res.ok) {
+        console.warn(`GET /api/v1/chat/sessions/${sessionId} returned status ${res.status}`);
+        return null;
+      }
 
       const data = await res.json();
-      const rawMessages = Array.isArray(data) 
-        ? data 
-        : (data.messages && Array.isArray(data.messages) ? data.messages : []);
 
-      const formattedMessages: ChatMessage[] = rawMessages.map((m: any, idx: number) => {
-        const role = (m.role || m.type || 'ai').toLowerCase();
-        const isUser = role === 'user' || role === 'human';
+      let rawMessages: any[] = [];
+      if (Array.isArray(data)) {
+        rawMessages = data;
+      } else if (Array.isArray(data.messages)) {
+        rawMessages = data.messages;
+      } else if (Array.isArray(data.history)) {
+        rawMessages = data.history;
+      } else if (Array.isArray(data.chat_history)) {
+        rawMessages = data.chat_history;
+      } else if (Array.isArray(data.items)) {
+        rawMessages = data.items;
+      } else if (data.data && Array.isArray(data.data.messages)) {
+        rawMessages = data.data.messages;
+      } else if (data.data && Array.isArray(data.data)) {
+        rawMessages = data.data;
+      }
+
+      const formattedMessages: ChatMessage[] = [];
+
+      for (let idx = 0; idx < rawMessages.length; idx++) {
+        const m = rawMessages[idx];
+        if (!m) continue;
+
+        // If backend stores query & response as a pair in a single object
+        if (m.query && m.response) {
+          formattedMessages.push({
+            id: m.id ? `${m.id}-user` : `msg-${idx}-user`,
+            type: 'user',
+            content: m.query,
+            createdAt: m.created_at || m.timestamp
+          });
+          const rawCitations = m.citations || m.sources || [];
+          const sources = Array.isArray(rawCitations) 
+            ? rawCitations.map((c: any, cIdx: number) => normalizeCitation(c, cIdx))
+            : [];
+          formattedMessages.push({
+            id: m.id ? `${m.id}-ai` : `msg-${idx}-ai`,
+            type: 'ai',
+            content: m.response,
+            sources: sources.length > 0 ? sources : undefined,
+            createdAt: m.created_at || m.timestamp
+          });
+          continue;
+        }
+
+        const roleStr = String(m.role || m.type || m.sender || m.author || '').toLowerCase();
+        const isUser = roleStr === 'user' || roleStr === 'human' || m.is_user === true;
         const rawCitations = m.citations || m.sources || [];
         const sources = Array.isArray(rawCitations) 
           ? rawCitations.map((c: any, cIdx: number) => normalizeCitation(c, cIdx))
           : [];
 
-        return {
-          id: m.id || `msg-${idx}-${Date.now()}`,
+        const content = m.content || m.text || m.message || m.body || m.answer || m.response || '';
+
+        formattedMessages.push({
+          id: m.id || m._id || `msg-${idx}-${Date.now()}`,
           type: isUser ? 'user' : 'ai',
-          content: m.content || m.text || m.message || '',
+          content,
           sources: sources.length > 0 ? sources : undefined,
           createdAt: m.created_at || m.timestamp
-        };
-      });
+        });
+      }
 
       const session: ChatSession = {
         id: data.id || data.session_id || sessionId,

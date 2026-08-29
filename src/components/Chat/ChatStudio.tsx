@@ -70,18 +70,14 @@ export default function ChatStudio({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const activeSessionIdRef = useRef<string>(currentSessionId);
+  const streamingSessionIdRef = useRef<string | null>(null);
 
-  // Load session messages when currentSessionId changes from outside (e.g. sidebar click)
+  // Load session messages when currentSessionId changes (sidebar click or URL landing)
   useEffect(() => {
-    let isCancelled = false;
-
-    // If currentSessionId matches what is already loaded/active in this view, don't re-fetch and overwrite live state
-    if (currentSessionId === activeSessionIdRef.current) {
+    // If a stream is active for this session, do not fetch from DB and overwrite live state
+    if (streamingSessionIdRef.current && streamingSessionIdRef.current === currentSessionId) {
       return;
     }
-
-    activeSessionIdRef.current = currentSessionId;
 
     if (!currentSessionId) {
       setMessages([]);
@@ -89,32 +85,38 @@ export default function ChatStudio({
       setStreamingCitations([]);
       setActiveNodeStatus(null);
       setErrorMessage(null);
+      setIsLoadingHistory(false);
       return;
     }
 
-    const loadSessionHistory = async () => {
-      setIsLoadingHistory(true);
-      setErrorMessage(null);
-      try {
-        const data = await chatApi.getSession(currentSessionId);
-        if (!isCancelled && data) {
-          setMessages(data.messages);
+    let isSubscribed = true;
+    setIsLoadingHistory(true);
+    setErrorMessage(null);
+
+    chatApi.getSession(currentSessionId)
+      .then((data) => {
+        if (isSubscribed) {
+          if (data && Array.isArray(data.messages)) {
+            setMessages(data.messages);
+          } else {
+            setMessages([]);
+          }
         }
-      } catch (err: any) {
-        if (!isCancelled) {
+      })
+      .catch((err) => {
+        if (isSubscribed) {
           console.error('Error fetching session history:', err);
+          setErrorMessage('Could not load conversation history.');
         }
-      } finally {
-        if (!isCancelled) {
+      })
+      .finally(() => {
+        if (isSubscribed) {
           setIsLoadingHistory(false);
         }
-      }
-    };
-
-    loadSessionHistory();
+      });
 
     return () => {
-      isCancelled = true;
+      isSubscribed = false;
     };
   }, [currentSessionId]);
 
@@ -244,6 +246,7 @@ export default function ChatStudio({
     let accumulatedText = '';
     let accumulatedCitations: SourceCitation[] = [];
     let activeSession = currentSessionId;
+    streamingSessionIdRef.current = activeSession || 'STREAMING_NEW';
 
     try {
       await chatApi.streamChat({
@@ -253,7 +256,8 @@ export default function ChatStudio({
         onMetadata: (meta) => {
           if (meta.session_id) {
             activeSession = meta.session_id;
-            activeSessionIdRef.current = meta.session_id;
+            streamingSessionIdRef.current = meta.session_id;
+            window.history.replaceState(null, '', `/c/${meta.session_id}`);
             onSelectSession(meta.session_id);
             if (onSessionCreated) {
               onSessionCreated({
@@ -310,6 +314,7 @@ export default function ChatStudio({
       setStreamingCitations([]);
       setActiveNodeStatus(null);
       abortControllerRef.current = null;
+      streamingSessionIdRef.current = null;
     }
   };
 
@@ -349,7 +354,12 @@ export default function ChatStudio({
       {/* Full-width scroll area (scrollbar at the far right edge of the screen) */}
       <div className="chatgpt-scroll-area">
         <div className="chatgpt-messages-viewport">
-        {messages.length === 0 && !isStreaming ? (
+        {isLoadingHistory ? (
+          <div className="chatgpt-hero-empty anim-fade-in">
+            <div className="node-spinner-ring" style={{ width: '28px', height: '28px', borderWidth: '3px' }}></div>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading conversation history...</span>
+          </div>
+        ) : messages.length === 0 && !isStreaming ? (
           /* Symmetrical 4-Plane Gyroscopic Solar System */
           <div className="chatgpt-hero-empty anim-fade-in">
             {/* 3D Multi-Shell Solar Gyroscopic System with 360° Drag & Touch Control */}
@@ -567,7 +577,7 @@ export default function ChatStudio({
       {/* Floating Bottom Console */}
       <div className="chatgpt-input-wrapper">
         {/* Dynamic Suggestion Starter Pills Based on Uploaded Files */}
-        {messages.length === 0 && !isStreaming && (
+        {messages.length === 0 && !isStreaming && !isLoadingHistory && (
           <div className="prompt-starters-row anim-slide-up">
             {dynamicPromptStarters.map((starter, idx) => (
               <button 

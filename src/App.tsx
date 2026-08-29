@@ -21,6 +21,11 @@ function getInitialTheme(): ThemeType {
   return 'light';
 }
 
+function getSessionIdFromPath(): string {
+  const match = window.location.pathname.match(/^\/c\/([^/]+)/);
+  return match ? match[1] : '';
+}
+
 function App() {
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -33,7 +38,7 @@ function App() {
   
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string>('');
+  const [currentSessionId, setCurrentSessionId] = useState<string>(getSessionIdFromPath);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -42,6 +47,17 @@ function App() {
     } catch (err) {
       console.warn('Failed to load chat sessions:', err);
     }
+  }, []);
+
+  // Listen to browser Back / Forward popstate events for /c/:sessionId routing
+  useEffect(() => {
+    const handlePopState = () => {
+      const pathSessionId = getSessionIdFromPath();
+      setCurrentSessionId(pathSessionId);
+      setActiveTab('chat');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   useEffect(() => {
@@ -114,6 +130,7 @@ function App() {
     setUserProfile(null);
     setChatSessions([]);
     setCurrentSessionId('');
+    window.history.pushState(null, '', '/');
   };
 
   const handleToggleTheme = () => {
@@ -122,9 +139,22 @@ function App() {
     localStorage.setItem('app-theme', nextTheme);
   };
 
+  // Switch to session with URL routing
+  const handleSelectSession = (id: string) => {
+    setCurrentSessionId(id);
+    setActiveTab('chat');
+    if (id) {
+      window.history.pushState(null, '', `/c/${id}`);
+    } else {
+      window.history.pushState(null, '', '/');
+    }
+  };
+
+  // "New Chat" clears current session ID and sets URL to '/'
   const handleNewSession = () => {
     setCurrentSessionId('');
     setActiveTab('chat');
+    window.history.pushState(null, '', '/');
   };
 
   const handleSessionCreated = useCallback((newSession: { id: string; title: string }) => {
@@ -153,6 +183,7 @@ function App() {
     setChatSessions(prev => prev.filter(s => s.id !== id));
     if (currentSessionId === id) {
       setCurrentSessionId('');
+      window.history.pushState(null, '', '/');
     }
   };
 
@@ -177,10 +208,7 @@ function App() {
         <Sidebar 
           chatSessions={chatSessions}
           currentSessionId={currentSessionId}
-          onSelectSession={(id) => {
-            setCurrentSessionId(id);
-            setActiveTab('chat');
-          }}
+          onSelectSession={handleSelectSession}
           onNewSession={handleNewSession}
           onDeleteSession={handleDeleteSession}
           onOpenDocManager={() => setActiveTab('documents')}
@@ -207,7 +235,7 @@ function App() {
             {activeTab === 'chat' ? (
               <ChatStudio 
                 currentSessionId={currentSessionId}
-                onSelectSession={setCurrentSessionId}
+                onSelectSession={handleSelectSession}
                 onSessionCreated={handleSessionCreated}
                 onSessionTitleUpdated={handleSessionTitleUpdated}
                 onNavigateToIngestion={() => setActiveTab('documents')}
@@ -229,8 +257,7 @@ function App() {
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         onSelectSession={(id) => {
-          setCurrentSessionId(id);
-          setActiveTab('chat');
+          handleSelectSession(id);
           setIsCommandPaletteOpen(false);
         }}
         onNewSession={() => {
