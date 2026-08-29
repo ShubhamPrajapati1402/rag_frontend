@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   ArrowUp, 
   Copy, 
@@ -498,7 +499,9 @@ export default function ChatStudio({
                 <div className="ai-message-card anim-slide-up">
                   {/* Formatted Content */}
                   <div className="ai-markdown-body">
-                    <ReactMarkdown>{msg.content ? msg.content.replace(/\|\|\s*\|?/g, '|\n| ') : ''}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content ? msg.content.replace(/\|\|\s*\|?/g, '|\n| ') : ''}
+                    </ReactMarkdown>
                   </div>
 
                   {/* Structured Citations */}
@@ -565,7 +568,9 @@ export default function ChatStudio({
               {/* Streaming Tokens */}
               {streamingText && (
                 <div className="ai-markdown-body">
-                  <ReactMarkdown>{streamingText}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {streamingText ? streamingText.replace(/\|\|\s*\|?/g, '|\n| ') : ''}
+                  </ReactMarkdown>
                   <span className="typing-cursor"></span>
                 </div>
               )}

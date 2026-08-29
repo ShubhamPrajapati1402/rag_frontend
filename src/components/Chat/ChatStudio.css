@@ -595,6 +595,56 @@
   font-size: 13px;
 }
 
+/* Markdown Tables (GFM) */
+.ai-markdown-body table,
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 14px;
+  border-radius: var(--radius-sm, 8px);
+  overflow: hidden;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.14));
+}
+
+.ai-markdown-body th,
+.ai-markdown-body td,
+th,
+td {
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  padding: 9px 14px;
+  text-align: left;
+  line-height: 1.5;
+}
+
+.ai-markdown-body th,
+th {
+  background-color: var(--bg-surface-active, rgba(255, 255, 255, 0.08));
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-sans, sans-serif);
+}
+
+.ai-markdown-body tr:nth-child(even),
+tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.025);
+}
+
+[data-theme="light"] .ai-markdown-body tr:nth-child(even),
+[data-theme="light"] tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.025);
+}
+
+.ai-markdown-body tr:hover,
+tr:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="light"] .ai-markdown-body tr:hover,
+[data-theme="light"] tr:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
 /* Actions */
 .ai-actions-row {
   display: flex;

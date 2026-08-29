@@ -154,3 +154,27 @@ body {
 [data-theme="light"] ::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.15);
 }
+
+/* Clean Table Styling for Markdown Tables */
+.prose table, table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 0.875rem;
+}
+.prose th, .prose td, th, td {
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+  padding: 8px 14px;
+  text-align: left;
+}
+.prose th, th {
+  background-color: var(--bg-surface-active, rgba(255, 255, 255, 0.08));
+  font-weight: 600;
+}
+.prose tr:nth-child(even), tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+[data-theme="light"] .prose tr:nth-child(even),
+[data-theme="light"] tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.03);
+}
