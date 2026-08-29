@@ -39,25 +39,75 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   // 6-digit OTP state
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const [resendTimer, setResendTimer] = useState<number>(30);
-  const [canResend, setCanResend] = useState<boolean>(false);
+  const [cooldown, setCooldown] = useState<number>(60);
+  const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
-  // OTP Countdown timer
+  // Initialize Google Identity Services & Render Official Button
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (authMode === 'otp' && resendTimer > 0) {
-      interval = setInterval(() => {
-        setResendTimer(prev => {
-          if (prev <= 1) {
-            setCanResend(true);
-            return 0;
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    
+    const initGsi = () => {
+      if ((window as any).google?.accounts?.id && googleClientId) {
+        try {
+          (window as any).google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: async (response: any) => {
+              if (!response?.credential) return;
+              setIsLoading(true);
+              setErrorMessage(null);
+              try {
+                await authApi.googleLogin(response.credential);
+                const me = await authApi.getMe();
+                onLogin(me || {
+                  name: 'User',
+                  email: '',
+                });
+              } catch (err: any) {
+                setErrorMessage(err.message || 'Google authentication failed.');
+              } finally {
+                setIsLoading(false);
+              }
+            },
+          });
+
+          if (googleBtnContainerRef.current) {
+            googleBtnContainerRef.current.innerHTML = '';
+            (window as any).google.accounts.id.renderButton(googleBtnContainerRef.current, {
+              theme: 'filled_black',
+              size: 'large',
+              type: 'standard',
+              shape: 'pill',
+              text: 'continue_with',
+              width: 320,
+              logo_alignment: 'left',
+            });
           }
-          return prev - 1;
-        });
+        } catch (err) {
+          console.warn('GSI render notice:', err);
+        }
+      }
+    };
+
+    const timer = setTimeout(initGsi, 200);
+    return () => clearTimeout(timer);
+  }, [authMode, onLogin]);
+
+  // 60-Second OTP Countdown timer
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (authMode === 'otp' && cooldown > 0) {
+      interval = setInterval(() => {
+        setCooldown(prev => (prev > 0 ? prev - 1 : 0));
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [authMode, resendTimer]);
+  }, [authMode, cooldown]);
+
+  const formatCooldown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}s`;
+  };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -71,14 +121,12 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   };
 
   const handleOtpChange = (index: number, value: string) => {
-    // Only accept numeric inputs
     if (value && !/^\d+$/.test(value)) return;
 
     const newDigits = [...otpDigits];
-    newDigits[index] = value.slice(-1); // Take latest single digit
+    newDigits[index] = value.slice(-1);
     setOtpDigits(newDigits);
 
-    // Auto advance focus
     if (value && index < 5) {
       otpInputRefs.current[index + 1]?.focus();
     }
@@ -138,7 +186,6 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         onLogin(me || {
           name: name || email.split('@')[0],
           email: email,
-          role: 'Pro Workspace'
         });
       } catch (err: any) {
         setErrorMessage(err.message || 'Invalid or expired OTP. Please try again.');
@@ -172,8 +219,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         await authApi.signup(name, email, password);
         setSuccessMessage(`A 6-digit verification code has been sent to ${email}`);
         setAuthMode('otp');
-        setResendTimer(30);
-        setCanResend(false);
+        setCooldown(60);
         setOtpDigits(['', '', '', '', '', '']);
       } catch (err: any) {
         setErrorMessage(err.message || 'Signup failed. Please try again.');
@@ -197,7 +243,6 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         onLogin(me || {
           name: email.split('@')[0],
           email: email,
-          role: 'Pro Workspace'
         });
       } catch (err: any) {
         setErrorMessage(err.message || 'Invalid email or password.');
@@ -208,14 +253,14 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   };
 
   const handleResendOtp = async () => {
-    if (!canResend) return;
+    if (cooldown > 0 || isLoading) return;
+
     setErrorMessage(null);
     setIsLoading(true);
     try {
       await authApi.resendOtp(email);
       setSuccessMessage('A fresh 6-digit verification code has been sent to your email.');
-      setResendTimer(30);
-      setCanResend(false);
+      setCooldown(60);
       setOtpDigits(['', '', '', '', '', '']);
       otpInputRefs.current[0]?.focus();
     } catch (err: any) {
@@ -225,25 +270,9 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      // Simulate Google OAuth token flow or call endpoint
-      const me = await authApi.getMe();
-      if (me) {
-        onLogin(me);
-      } else {
-        onLogin({
-          name: 'Shubham Prajapati',
-          email: 'shubham.prajapati@google.com',
-          role: 'Pro Workspace'
-        });
-      }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Google sign in failed.');
-    } finally {
-      setIsLoading(false);
+  const handleCustomGoogleClick = () => {
+    if ((window as any).google?.accounts?.id) {
+      (window as any).google.accounts.id.prompt();
     }
   };
 
@@ -271,12 +300,15 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         {/* Branding & 3D Gyroscopic Solar Core */}
         <div className="auth-brand-badge">
           <div className="neural-3d-scene auth-3d-emblem">
+            {/* Central Volumetric 3D Sphere */}
             <div className="volumetric-3d-sphere">
               <Brain size={22} className="sphere-brain-hologram" />
             </div>
 
+            {/* Symmetrical 4-Plane Gyroscopic Solar System */}
             <div className="interactive-3d-rotator">
               <div className="neural-3d-floating-system">
+                {/* 1. Horizontal Equatorial Ring (0°) */}
                 <div className="gyro-3d-ring gyro-equatorial">
                   <div className="planet-revolver rev-eq">
                     <div className="orbit-planet">
@@ -287,6 +319,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   </div>
                 </div>
 
+                {/* 2. +45° Tilted Ring from Right Side */}
                 <div className="gyro-3d-ring gyro-tilt-pos">
                   <div className="planet-revolver rev-pos">
                     <div className="orbit-planet">
@@ -297,6 +330,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   </div>
                 </div>
 
+                {/* 3. -45° Tilted Ring from Left Side */}
                 <div className="gyro-3d-ring gyro-tilt-neg">
                   <div className="planet-revolver rev-neg">
                     <div className="orbit-planet">
@@ -307,6 +341,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   </div>
                 </div>
 
+                {/* 4. 90° Polar Ring Perpendicular to Equatorial Ring */}
                 <div className="gyro-3d-ring gyro-polar-90">
                   <div className="planet-revolver rev-polar">
                     <div className="orbit-planet">
@@ -321,22 +356,23 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
 
             <div className="neural-3d-floor-shadow"></div>
           </div>
-
           <h2>Noesis</h2>
-          <span className="auth-tagline">Autonomous Multi-Modal RAG Platform</span>
+          <span className="auth-badge-sub">Autonomous Multi-Modal RAG Platform</span>
         </div>
 
-        <div className="auth-form-card">
-          {/* 1. OTP Verification Mode */}
+        {/* Content Container */}
+        <div className="auth-card-inner">
           {authMode === 'otp' ? (
-            <div className="auth-otp-pane anim-fade-in">
-              <div className="auth-header-text">
-                <div className="otp-icon-badge">
-                  <KeyRound size={20} className="text-indigo-500" />
+            /* 1. OTP Verification Mode */
+            <div className="auth-otp-view anim-fade-in">
+              <div className="auth-otp-header">
+                <div className="auth-otp-icon-wrap">
+                  <KeyRound size={22} className="auth-key-icon" />
                 </div>
                 <h3>Verify your email</h3>
                 <p>
-                  Enter the 6-digit verification code sent to <strong>{email}</strong>
+                  Enter the 6-digit verification code sent to <br />
+                  <strong>{email}</strong>
                 </p>
               </div>
 
@@ -354,60 +390,59 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="auth-input-form">
-                <div className="otp-boxes-wrapper" onPaste={handleOtpPaste}>
-                  {otpDigits.map((digit, idx) => (
-                    <input
-                      key={idx}
-                      ref={el => {
-                        otpInputRefs.current[idx] = el;
-                      }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={e => handleOtpChange(idx, e.target.value)}
-                      onKeyDown={e => handleOtpKeyDown(idx, e)}
-                      className={`otp-digit-box ${digit ? 'filled' : ''}`}
-                      autoFocus={idx === 0}
-                    />
-                  ))}
-                </div>
-
-                <button type="submit" className="auth-primary-submit-btn" disabled={isLoading}>
-                  {isLoading ? (
-                    <span className="auth-spinner"></span>
-                  ) : (
-                    <>
-                      <span>Verify & Continue</span>
-                      <ArrowRight size={15} />
-                    </>
-                  )}
-                </button>
-              </form>
-
-              <div className="otp-resend-row">
-                {canResend ? (
-                  <button 
-                    type="button" 
-                    className="otp-resend-btn active"
-                    onClick={handleResendOtp}
-                    disabled={isLoading}
-                  >
-                    <RotateCw size={13} />
-                    <span>Resend verification code</span>
-                  </button>
-                ) : (
-                  <span className="otp-timer-text">
-                    Resend code in <strong>{resendTimer}s</strong>
-                  </span>
-                )}
+              {/* 6-Digit OTP Input Box Group */}
+              <div className="auth-otp-boxes-row" onPaste={handleOtpPaste}>
+                {otpDigits.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={(el) => { otpInputRefs.current[idx] = el; }}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(idx, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                    className={`auth-otp-box ${digit ? 'filled' : ''}`}
+                    autoFocus={idx === 0}
+                  />
+                ))}
               </div>
 
-              <div className="auth-toggle-footer">
+              <button 
+                type="button" 
+                className="auth-primary-submit-btn" 
+                onClick={() => handleSubmit()}
+                disabled={isLoading || otpDigits.join('').length !== 6}
+              >
+                {isLoading ? (
+                  <span className="auth-spinner"></span>
+                ) : (
+                  <>
+                    <span>Verify & Continue</span>
+                    <ArrowRight size={15} />
+                  </>
+                )}
+              </button>
+
+              <div className="auth-otp-footer">
+                <button
+                  type="button"
+                  className={`auth-resend-btn ${cooldown > 0 ? 'disabled' : ''}`}
+                  onClick={handleResendOtp}
+                  disabled={cooldown > 0 || isLoading}
+                >
+                  <RotateCw size={13} className={isLoading ? 'anim-spin' : ''} />
+                  <span>
+                    {cooldown > 0 
+                      ? `Resend code in ${formatCooldown(cooldown)}` 
+                      : 'Resend code'}
+                  </span>
+                </button>
+
                 <button 
                   type="button" 
-                  className="auth-back-btn"
+                  className="auth-back-link" 
                   onClick={() => switchMode('signup')}
                 >
                   <ArrowLeft size={13} />
@@ -418,28 +453,28 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
           ) : authMode === 'forgot' ? (
             /* 2. Forgot Password Mode */
             resetSent ? (
-              <div className="auth-reset-success-pane anim-fade-in">
-                <div className="reset-success-icon-box">
-                  <CheckCircle2 size={30} className="text-emerald-500" />
+              <div className="auth-reset-success-box anim-fade-in">
+                <div className="auth-success-circle">
+                  <CheckCircle2 size={32} />
                 </div>
                 <h3>Check your email</h3>
                 <p>
-                  We have sent password reset instructions to <strong>{email}</strong>.
+                  We have sent password recovery instructions to <strong>{email}</strong>
                 </p>
                 <button 
                   type="button" 
-                  className="auth-primary-submit-btn"
+                  className="auth-back-btn"
                   onClick={() => switchMode('signin')}
                 >
-                  <ArrowLeft size={15} />
+                  <ArrowLeft size={14} />
                   <span>Return to Sign In</span>
                 </button>
               </div>
             ) : (
-              <div className="auth-forgot-pane anim-fade-in">
+              <div className="auth-forgot-view anim-fade-in">
                 <div className="auth-header-text">
-                  <h3>Reset password</h3>
-                  <p>Enter your email and we will send you a link to reset your account password.</p>
+                  <h3>Reset your password</h3>
+                  <p>Enter your account email to receive reset instructions.</p>
                 </div>
 
                 {errorMessage && (
@@ -451,17 +486,16 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
 
                 <form onSubmit={handleSubmit} className="auth-input-form">
                   <div className="auth-field-group">
-                    <label htmlFor="auth-email">Email address</label>
+                    <label htmlFor="auth-forgot-email">Account email</label>
                     <div className="auth-input-wrapper">
                       <Mail size={15} className="auth-field-icon" />
                       <input 
-                        id="auth-email"
+                        id="auth-forgot-email"
                         type="email" 
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="name@company.com"
                         required
-                        autoFocus
                       />
                     </div>
                   </div>
@@ -471,7 +505,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                       <span className="auth-spinner"></span>
                     ) : (
                       <>
-                        <span>Send Reset Link</span>
+                        <span>Send Instructions</span>
                         <ArrowRight size={15} />
                       </>
                     )}
@@ -481,7 +515,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 <div className="auth-toggle-footer">
                   <button 
                     type="button" 
-                    className="auth-back-btn"
+                    className="auth-back-link" 
                     onClick={() => switchMode('signin')}
                   >
                     <ArrowLeft size={13} />
@@ -494,12 +528,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
             /* 3. Sign In & Sign Up Modes */
             <>
               <div className="auth-header-text">
-                <h3>{authMode === 'signin' ? 'Welcome back' : 'Create an account'}</h3>
-                <p>
-                  {authMode === 'signin' 
-                    ? 'Sign in to access your neural semantic index and document collections.' 
-                    : 'Get started with autonomous document processing and neural RAG.'}
-                </p>
+                <h3>{authMode === 'signin' ? 'Sign in' : 'Create an account'}</h3>
               </div>
 
               {errorMessage && (
@@ -527,7 +556,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                         type="text" 
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Shubham Prajapati"
+                        placeholder="e.g. Alex Johnson"
                         autoComplete="name"
                         required
                       />
@@ -560,7 +589,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                         className="forgot-pass-link" 
                         onClick={() => switchMode('forgot')}
                       >
-                        Forgot?
+                        Forgot password?
                       </button>
                     )}
                   </div>
@@ -635,23 +664,28 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 <span>OR CONTINUE WITH</span>
               </div>
 
-              {/* Google OAuth Button */}
-              <div className="auth-social-row">
-                <button 
-                  type="button" 
-                  className="auth-google-btn"
-                  onClick={handleGoogleSignIn}
-                  disabled={isLoading}
-                  title="Sign in with Google"
+              {/* Official Google Identity Button Container */}
+              <div className="auth-social-row" style={{ display: 'flex', justifyContent: 'center', minHeight: '44px' }}>
+                <div 
+                  id="google-signin-btn-container" 
+                  ref={googleBtnContainerRef} 
+                  style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
                 >
-                  <svg className="google-svg-icon" viewBox="0 0 24 24" width="17" height="17">
-                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.36 7.35 24 12 24z"/>
-                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
-                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.27 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-                  </svg>
-                  <span>Sign in with Google</span>
-                </button>
+                  <button 
+                    type="button" 
+                    className="auth-google-btn"
+                    onClick={handleCustomGoogleClick}
+                    disabled={isLoading}
+                  >
+                    <svg className="google-svg-icon" viewBox="0 0 24 24" width="17" height="17">
+                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.36 7.35 24 12 24z"/>
+                      <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
+                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.27 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                    </svg>
+                    <span>Sign in with Google</span>
+                  </button>
+                </div>
               </div>
 
               {/* Mode Toggle */}

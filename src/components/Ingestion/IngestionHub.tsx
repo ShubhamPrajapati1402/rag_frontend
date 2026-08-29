@@ -11,7 +11,8 @@ import {
   Trash2, 
   Eye, 
   X,
-  FileCheck
+  FileCheck,
+  FolderOpen
 } from 'lucide-react';
 import { DocumentItem } from '../../types';
 import './IngestionHub.css';
@@ -150,64 +151,79 @@ export default function IngestionHub({ documents, setDocuments, onUpdateDocCount
           </div>
 
           <div className="clean-table-viewport">
-            <table className="clean-docs-table">
-              <thead>
-                <tr>
-                  <th>NAME</th>
-                  <th>FORMAT</th>
-                  <th>SIZE</th>
-                  <th>STATUS</th>
-                  <th>UPLOADED</th>
-                  <th className="text-right">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDocs.map((doc) => (
-                  <tr key={doc.id} className="doc-table-row">
-                    <td className="cell-doc-name">
-                      <span className="table-file-icon">
-                        {doc.format === 'PDF' && <FileText size={16} className="text-rose-500" />}
-                        {doc.format === 'Excel' && <FileSpreadsheet size={16} className="text-emerald-500" />}
-                        {doc.format === 'CSV' && <FileSpreadsheet size={16} className="text-emerald-500" />}
-                        {doc.format === 'Markdown' && <FileCode size={16} className="text-blue-500" />}
-                        {doc.format !== 'PDF' && doc.format !== 'Excel' && doc.format !== 'CSV' && doc.format !== 'Markdown' && <FileBox size={16} />}
-                      </span>
-                      <span className="name-text-strong" title={doc.name}>{doc.name}</span>
-                    </td>
-                    <td>
-                      <span className="pill-format">{doc.format}</span>
-                    </td>
-                    <td className="cell-muted">{doc.size}</td>
-                    <td>
-                      <span className={`pill-status ${doc.status}`}>
-                        {doc.status === 'ready' && <CheckCircle2 size={12} />}
-                        {doc.status === 'processing' && <Clock size={12} />}
-                        <span>{doc.status}</span>
-                      </span>
-                    </td>
-                    <td className="cell-muted">{doc.date}</td>
-                    <td className="text-right">
-                      <div className="actions-cluster">
-                        <button 
-                          className="table-action-icon-btn" 
-                          onClick={() => setSelectedDoc(doc)}
-                          title="Preview Document Information"
-                        >
-                          <Eye size={15} />
-                        </button>
-                        <button 
-                          className="table-action-icon-btn text-danger" 
-                          onClick={() => handleDelete(doc.id)}
-                          title="Delete Document"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
+            {documents.length === 0 ? (
+              <div className="table-empty-state anim-fade-in">
+                <div className="empty-state-icon-box">
+                  <FolderOpen size={32} />
+                </div>
+                <p className="empty-state-title">No documents ingested yet</p>
+                <span className="empty-state-sub">Upload files using the dropzone above to start neural indexing and semantic search.</span>
+              </div>
+            ) : filteredDocs.length === 0 ? (
+              <div className="table-empty-state anim-fade-in">
+                <p className="empty-state-title">No matching documents found</p>
+                <span className="empty-state-sub">Try searching with a different filename keyword.</span>
+              </div>
+            ) : (
+              <table className="clean-docs-table">
+                <thead>
+                  <tr>
+                    <th>NAME</th>
+                    <th>FORMAT</th>
+                    <th>SIZE</th>
+                    <th>STATUS</th>
+                    <th>UPLOADED</th>
+                    <th className="text-right">ACTIONS</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredDocs.map((doc) => (
+                    <tr key={doc.id} className="doc-table-row">
+                      <td className="cell-doc-name">
+                        <span className="table-file-icon">
+                          {doc.format === 'PDF' && <FileText size={16} className="text-rose-500" />}
+                          {doc.format === 'Excel' && <FileSpreadsheet size={16} className="text-emerald-500" />}
+                          {doc.format === 'CSV' && <FileSpreadsheet size={16} className="text-emerald-500" />}
+                          {doc.format === 'Markdown' && <FileCode size={16} className="text-blue-500" />}
+                          {doc.format !== 'PDF' && doc.format !== 'Excel' && doc.format !== 'CSV' && doc.format !== 'Markdown' && <FileBox size={16} />}
+                        </span>
+                        <span className="name-text-strong" title={doc.name}>{doc.name}</span>
+                      </td>
+                      <td>
+                        <span className="pill-format">{doc.format}</span>
+                      </td>
+                      <td className="cell-muted">{doc.size}</td>
+                      <td>
+                        <span className={`pill-status ${doc.status}`}>
+                          {doc.status === 'ready' && <CheckCircle2 size={12} />}
+                          {doc.status === 'processing' && <Clock size={12} />}
+                          <span>{doc.status}</span>
+                        </span>
+                      </td>
+                      <td className="cell-muted">{doc.date}</td>
+                      <td className="text-right">
+                        <div className="actions-cluster">
+                          <button 
+                            className="table-action-icon-btn" 
+                            onClick={() => setSelectedDoc(doc)}
+                            title="Preview Document Information"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          <button 
+                            className="table-action-icon-btn text-danger" 
+                            onClick={() => handleDelete(doc.id)}
+                            title="Delete Document"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>

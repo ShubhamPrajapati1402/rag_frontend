@@ -12,7 +12,31 @@
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+}
+
+.navbar-sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #a3a3a3);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.navbar-sidebar-toggle-btn:hover {
+  background: var(--bg-surface-hover, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .navbar-sidebar-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #171717;
 }
 
 .model-selector-pill {

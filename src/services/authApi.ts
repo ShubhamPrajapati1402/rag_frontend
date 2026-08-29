@@ -15,7 +15,7 @@ export const authApi = {
     const res = await fetch(`${BACKEND_BASE_URL}/api/v1/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // Ensures HttpOnly cookies are handled
+      credentials: 'include',
       body: JSON.stringify({ name, email, password }),
     });
 
@@ -80,7 +80,7 @@ export const authApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ token: idToken }),
+      body: JSON.stringify({ id_token: idToken }),
     });
 
     const data = await res.json();
@@ -101,9 +101,10 @@ export const authApi = {
       if (!res.ok) return null;
       const data = await res.json();
       return {
-        name: data.name || data.full_name || 'User',
+        name: data.full_name || data.name || (data.email ? data.email.split('@')[0] : 'User'),
         email: data.email,
-        role: data.role || 'Pro Workspace'
+        avatarUrl: data.avatar_url || data.picture || '',
+        picture: data.avatar_url || data.picture || ''
       };
     } catch {
       return null;

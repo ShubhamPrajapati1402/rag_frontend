@@ -122,9 +122,9 @@
 
 /* 3D Multi-Shell Gyroscopic Solar System Emblem */
 .auth-3d-emblem {
-  width: 90px;
-  height: 90px;
-  margin: 0 auto 2px auto;
+  width: 130px;
+  height: 120px;
+  margin: 0 auto 6px auto;
   position: relative;
   display: flex;
   align-items: center;
@@ -132,26 +132,232 @@
   perspective: 1200px;
 }
 
-.auth-3d-emblem .interactive-3d-rotator,
+.auth-3d-emblem .interactive-3d-rotator {
+  transform-style: preserve-3d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 .auth-3d-emblem .neural-3d-floating-system {
+  transform-style: preserve-3d;
+  position: relative;
   width: 80px;
   height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: floatNeural3D 3.8s ease-in-out infinite alternate;
 }
 
 .auth-3d-emblem .gyro-3d-ring {
-  width: 80px;
-  height: 80px;
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+.auth-3d-emblem .gyro-equatorial {
+  width: 100px;
+  height: 100px;
+  border: 1.3px dotted rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.35));
+  transform: rotateZ(0deg) rotateX(68deg);
+}
+
+.auth-3d-emblem .gyro-tilt-pos {
+  width: 100px;
+  height: 100px;
+  border: 1.3px dotted rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.35));
+  transform: rotateZ(45deg) rotateX(68deg);
+}
+
+.auth-3d-emblem .gyro-tilt-neg {
+  width: 100px;
+  height: 100px;
+  border: 1.3px dotted rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.35));
+  transform: rotateZ(-45deg) rotateX(68deg);
+}
+
+.auth-3d-emblem .gyro-polar-90 {
+  width: 100px;
+  height: 100px;
+  border: 1.3px dotted rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.35));
+  transform: rotateZ(90deg) rotateX(68deg);
+}
+
+[data-theme="light"] .auth-3d-emblem .gyro-equatorial,
+[data-theme="light"] .auth-3d-emblem .gyro-tilt-pos,
+[data-theme="light"] .auth-3d-emblem .gyro-tilt-neg,
+[data-theme="light"] .auth-3d-emblem .gyro-polar-90 {
+  border: 1.5px dotted rgba(0, 0, 0, 0.75) !important;
+  filter: none !important;
+}
+
+.auth-3d-emblem .planet-revolver {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.auth-3d-emblem .rev-eq    { animation: orbitRevolve 10s linear infinite; }
+.auth-3d-emblem .rev-pos   { animation: orbitRevolve 7.5s linear infinite; }
+.auth-3d-emblem .rev-neg   { animation: orbitRevolve 8.8s linear infinite reverse; }
+.auth-3d-emblem .rev-polar { animation: orbitRevolve 6.2s linear infinite; }
+
+.auth-3d-emblem .orbit-planet {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 1);
+  transform-style: preserve-3d;
+}
+
+[data-theme="light"] .auth-3d-emblem .orbit-planet {
+  background: #0a0a0a;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.35);
+}
+
+.auth-3d-emblem .sub-moon-orbit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  margin-top: -6.5px;
+  margin-left: -6.5px;
+  border-radius: 50%;
+  border: 0.9px dotted rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+.auth-3d-emblem .moon-orbit-eq    { animation: spinSubMoon 2.5s linear infinite; }
+.auth-3d-emblem .moon-orbit-pos   { animation: spinSubMoon 1.9s linear infinite; }
+.auth-3d-emblem .moon-orbit-neg   { animation: spinSubMoon 2.2s linear infinite reverse; }
+.auth-3d-emblem .moon-orbit-polar { animation: spinSubMoon 1.6s linear infinite; }
+
+[data-theme="light"] .auth-3d-emblem .sub-moon-orbit {
+  border-color: rgba(0, 0, 0, 0.45);
+}
+
+.auth-3d-emblem .sub-moon {
+  position: absolute;
+  top: -1.2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 1);
+}
+
+[data-theme="light"] .auth-3d-emblem .sub-moon {
+  background: #0a0a0a;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
 }
 
 .auth-3d-emblem .volumetric-3d-sphere {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateZ(0);
+  transform-style: preserve-3d;
   width: 44px;
   height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #8c8c8c 0%, #4a4a4a 50%, #262626 100%);
+  box-shadow: 
+    0 10px 28px rgba(0, 0, 0, 0.55),
+    0 0 20px rgba(255, 255, 255, 0.12),
+    inset 0 2.5px 5px rgba(255, 255, 255, 0.65),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  pointer-events: none;
+}
+
+[data-theme="light"] .auth-3d-emblem .volumetric-3d-sphere {
+  background: radial-gradient(circle at 35% 30%, #b8b8be 0%, #7c7c84 50%, #4e4e56 100%);
+  box-shadow: 
+    0 8px 20px rgba(0, 0, 0, 0.2),
+    0 2px 6px rgba(0, 0, 0, 0.1),
+    inset 0 2.5px 5px rgba(255, 255, 255, 0.65),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.5);
+}
+
+.auth-3d-emblem .sphere-brain-hologram {
+  color: #ffffff !important;
+  display: block;
 }
 
 .auth-3d-emblem .neural-3d-floor-shadow {
-  width: 50px;
+  position: absolute;
+  bottom: 0px;
+  width: 65px;
   height: 12px;
-  bottom: 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.3) 55%, transparent 75%);
+  filter: blur(4px);
+  animation: shadowFloorPulse 3.8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+[data-theme="light"] .auth-3d-emblem .neural-3d-floor-shadow {
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0.12) 55%, transparent 75%);
+}
+
+@keyframes floatNeural3D {
+  0% { transform: translateY(3px); }
+  100% { transform: translateY(-7px); }
+}
+
+@keyframes orbitRevolve {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes spinSubMoon {
+  0% { transform: rotateZ(0deg); }
+  100% { transform: rotateZ(360deg); }
+}
+
+@keyframes shadowFloorPulse {
+  0% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0.7);
+    opacity: 0.35;
+  }
+}
+
+.auth-brand-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 6px;
 }
 
 .auth-brand-badge h2 {
@@ -163,10 +369,10 @@
   margin: 0;
 }
 
-.auth-tagline {
+.auth-badge-sub {
   font-size: 12px;
   color: var(--text-tertiary, #737373);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 /* Card Styling */
@@ -305,37 +511,83 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-}
-
-.otp-timer-text {
-  color: var(--text-tertiary, #737373);
+  margin: 4px 0 2px 0;
 }
 
 .otp-resend-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  color: var(--accent, #6366f1);
-  font-size: 12px;
+  justify-content: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: 0.01em;
 }
 
-.otp-resend-btn:hover {
-  text-decoration: underline;
-  color: #818cf8;
+/* Disabled State: Countdown ticking down with prominent bright text */
+.otp-resend-btn.disabled {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+  cursor: not-allowed;
+  opacity: 0.95;
+}
+
+[data-theme="light"] .otp-resend-btn.disabled {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #4f46e5;
+}
+
+/* Enabled State: Clickable with active hover effect */
+.otp-resend-btn.enabled {
+  background: rgba(99, 102, 241, 0.16);
+  border: 1px solid #6366f1;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+[data-theme="light"] .otp-resend-btn.enabled {
+  background: #6366f1;
+  color: #ffffff;
+  border-color: #4f46e5;
+}
+
+.otp-resend-btn.enabled:hover {
+  background: #6366f1;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.auth-spin-icon {
+  animation: spin 0.8s linear infinite;
+}
+
+.auth-header-text {
+  margin-bottom: 6px;
+  width: 100%;
+}
+
+.auth-header-text h3 {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+[data-theme="light"] .auth-header-text h3 {
+  color: #171717;
 }
 
 .auth-input-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .auth-field-group {
@@ -473,8 +725,10 @@
   text-align: center;
   color: var(--text-tertiary, #737373);
   font-size: 10.5px;
-  letter-spacing: 0.05em;
-  margin: 1px 0;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  margin: 12px 0 10px 0;
+  width: 100%;
 }
 
 .auth-divider::before,
@@ -490,43 +744,69 @@
 }
 
 .auth-divider span {
-  padding: 0 8px;
+  padding: 0 10px;
 }
 
 .auth-social-row {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 12px;
+  min-height: 44px;
+}
+
+#google-signin-btn-container,
+.google-btn-slot {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+#google-signin-btn-container iframe {
+  border-radius: 9999px !important;
+  overflow: hidden !important;
 }
 
 .auth-google-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 10px;
   width: 100%;
-  padding: 9px;
-  border-radius: 8px;
+  padding: 10.5px 20px;
+  border-radius: 9999px; /* Completely sharp-edge free pill curvature */
   background: var(--bg-tertiary, #262626);
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.14));
   color: var(--text-primary, #ffffff);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 [data-theme="light"] .auth-google-btn {
   background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.14);
+  border-color: rgba(0, 0, 0, 0.15);
   color: #171717;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .auth-google-btn:hover {
   background: var(--bg-secondary, #333333);
   border-color: var(--accent, #6366f1);
   transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25);
+}
+
+[data-theme="light"] .auth-google-btn:hover {
+  background: #f9f9fb;
+  border-color: rgba(0, 0, 0, 0.28);
 }
 
 [data-theme="light"] .auth-google-btn:hover {

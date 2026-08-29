@@ -94,23 +94,31 @@ export default function CommandPalette({
 
           {/* Search Results */}
           <div className="cmd-section-group">
-            <span className="cmd-group-label">CONVERSATIONS ({filteredSessions.length})</span>
-            {filteredSessions.map((session) => (
-              <div 
-                key={session.id}
-                className="cmd-row-item"
-                onClick={() => {
-                  onSelectSession(session.id);
-                  onClose();
-                }}
-              >
-                <div className="cmd-row-left">
-                  <MessageSquare size={14} className="cmd-row-icon" />
-                  <span className="cmd-row-text">{session.title}</span>
+            <span className="cmd-group-label">
+              CONVERSATIONS {filteredSessions.length > 0 ? `(${filteredSessions.length})` : ''}
+            </span>
+            {filteredSessions.length > 0 ? (
+              filteredSessions.map((session) => (
+                <div 
+                  key={session.id}
+                  className="cmd-row-item"
+                  onClick={() => {
+                    onSelectSession(session.id);
+                    onClose();
+                  }}
+                >
+                  <div className="cmd-row-left">
+                    <MessageSquare size={14} className="cmd-row-icon" />
+                    <span className="cmd-row-text">{session.title}</span>
+                  </div>
+                  <span className="cmd-jump-badge">Jump to chat</span>
                 </div>
-                <span className="cmd-jump-badge">Jump to chat</span>
+              ))
+            ) : (
+              <div className="cmd-empty-conversations">
+                No active conversations
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -119,7 +127,7 @@ export default function CommandPalette({
             <span>Navigation:</span>
             <kbd>↑</kbd>
             <kbd>↓</kbd>
-            <span>Select:</span>
+            <span style={{ marginLeft: '8px' }}>Select:</span>
             <kbd>↵</kbd>
           </div>
         </div>

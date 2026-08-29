@@ -13,7 +13,8 @@ import {
   Moon, 
   X,
   Keyboard,
-  Check
+  Check,
+  ChevronsUpDown
 } from 'lucide-react';
 import { ChatSession, ThemeType, UserProfile } from '../../types';
 import './Sidebar.css';
@@ -81,117 +82,189 @@ export default function Sidebar({
   // Derive dynamic user display properties
   const userName = userProfile?.name?.trim() || (userProfile?.email ? userProfile.email.split('@')[0] : '');
   const userEmail = userProfile?.email || '';
+  const userAvatar = userProfile?.avatarUrl || userProfile?.avatar || userProfile?.picture || userProfile?.image || '';
   const userInitial = (userName?.[0] || userEmail?.[0] || 'U').toUpperCase();
 
   return (
     <>
       <aside className={`chatgpt-sidebar-root ${isCollapsed ? 'collapsed' : ''}`}>
-        {/* Top Header Row */}
-        {!isCollapsed ? (
-          <div className="sidebar-brand-header">
-            <span className="sidebar-brand-title">Noesis</span>
-            <div className="brand-header-actions">
-              <button 
-                className="sidebar-action-btn" 
-                onClick={onOpenCommandPalette} 
-                title="Search (Ctrl+K)"
-              >
-                <Search size={16} />
-              </button>
-              <button 
-                className="sidebar-action-btn" 
-                onClick={onNewSession} 
-                title="New Chat"
-              >
-                <SquarePen size={16} />
-              </button>
-              <button 
-                className="sidebar-action-btn" 
-                onClick={onToggleCollapse} 
-                title="Collapse Sidebar (Ctrl+B)"
-              >
-                <PanelLeftClose size={16} />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="sidebar-collapsed-header">
+        {isCollapsed ? (
+          /* Collapsed State: Single Clean Vertical Stack of Icon Buttons */
+          <div className="collapsed-vertical-stack">
             <button 
               className="sidebar-action-btn" 
               onClick={onToggleCollapse} 
               title="Expand Sidebar (Ctrl+B)"
             >
-              <PanelLeftOpen size={16} />
+              <PanelLeftOpen size={17} />
             </button>
             <button 
               className="sidebar-action-btn" 
               onClick={onNewSession} 
               title="New Chat"
             >
-              <SquarePen size={16} />
+              <SquarePen size={17} />
+            </button>
+            <button 
+              className="sidebar-action-btn" 
+              onClick={onOpenCommandPalette} 
+              title="Search (Ctrl+K)"
+            >
+              <Search size={17} />
+            </button>
+            <button 
+              className="sidebar-action-btn" 
+              onClick={onOpenDocManager} 
+              title={`Projects (${docCount})`}
+            >
+              <FolderOpen size={17} />
             </button>
           </div>
-        )}
+        ) : (
+          /* Expanded State: Full ChatGPT-style Layout */
+          <>
+            {/* Top Header Row */}
+            <div className="sidebar-brand-header">
+              <div className="sidebar-brand-left">
+                <span className="sidebar-brand-title">Noesis<span className="brand-reg">®</span></span>
+              </div>
+              <div className="brand-header-actions">
+                <button 
+                  className="sidebar-action-btn" 
+                  onClick={onToggleCollapse} 
+                  title="Collapse Sidebar (Ctrl+B)"
+                >
+                  <PanelLeftClose size={17} />
+                </button>
+              </div>
+            </div>
 
-        {/* Primary Action Button */}
-        <div className="sidebar-action-container">
-          <button className="sidebar-new-chat-row" onClick={onNewSession}>
-            <SquarePen size={15} />
-            {!isCollapsed && <span>New chat</span>}
-          </button>
-        </div>
+            {/* Search Bar Row (Ctrl+K) */}
+            <div 
+              className="sidebar-search-bar"
+              onClick={onOpenCommandPalette}
+              title="Search chats (Ctrl+K)"
+            >
+              <Search size={14} className="sidebar-search-icon" />
+              <span className="sidebar-search-placeholder">Search</span>
+              <kbd className="sidebar-kbd">Ctrl K</kbd>
+            </div>
 
-        {/* Navigation Section Tabs */}
-        <div className="sidebar-nav-section">
-          <button className="sidebar-nav-item" onClick={onOpenDocManager}>
-            <FolderOpen size={15} />
-            {!isCollapsed && (
-              <>
-                <span className="nav-item-label">Knowledge Base</span>
+            {/* Primary Action Button */}
+            <div className="sidebar-action-container">
+              <button className="sidebar-new-chat-row" onClick={onNewSession}>
+                <SquarePen size={15} />
+                <span>New chat</span>
+              </button>
+            </div>
+
+            {/* Navigation Section Tabs */}
+            <div className="sidebar-nav-section">
+              <button className="sidebar-nav-item" onClick={onOpenDocManager}>
+                <FolderOpen size={15} />
+                <span className="nav-item-label">Projects</span>
                 <span className="nav-item-badge">{docCount}</span>
-              </>
-            )}
-          </button>
-        </div>
+              </button>
+            </div>
+          </>
+        )}
 
         {/* Chat History Section */}
         {!isCollapsed && (
           <div className="sidebar-history-pane">
-            <div className="history-section-header">
-              <span>Recent Conversations</span>
-            </div>
+            {chatSessions.length > 0 ? (
+              (() => {
+                // Group sessions dynamically by date periods like ChatGPT
+                const now = new Date();
+                const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                const startOfYesterday = startOfToday - 86400000;
+                const startOf7Days = startOfToday - 7 * 86400000;
+                const startOf30Days = startOfToday - 30 * 86400000;
 
-            <div className="history-items-scroll">
-              {chatSessions.map(session => {
-                const isActive = session.id === currentSessionId;
-                const isHovered = session.id === hoveredSessionId;
+                const groups: { [key: string]: ChatSession[] } = {
+                  'Today': [],
+                  'Yesterday': [],
+                  'Previous 7 Days': [],
+                  'Previous 30 Days': []
+                };
+                const olderGroups: { [key: string]: ChatSession[] } = {};
 
-                return (
-                  <div
-                    key={session.id}
-                    className={`history-row-item ${isActive ? 'active' : ''}`}
-                    onClick={() => onSelectSession(session.id)}
-                    onMouseEnter={() => setHoveredSessionId(session.id)}
-                    onMouseLeave={() => setHoveredSessionId(null)}
-                  >
-                    <span className="history-item-title">{session.title}</span>
+                for (const session of chatSessions) {
+                  const timeStr = session.updated_at || session.created_at;
+                  const sessionTime = timeStr ? new Date(timeStr).getTime() : startOfToday;
 
-                    {(isHovered || isActive) && (
-                      <button
-                        className="history-delete-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSessionToDelete(session);
-                        }}
-                        title="Delete chat"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    )}
+                  if (isNaN(sessionTime) || sessionTime >= startOfToday) {
+                    groups['Today'].push(session);
+                  } else if (sessionTime >= startOfYesterday) {
+                    groups['Yesterday'].push(session);
+                  } else if (sessionTime >= startOf7Days) {
+                    groups['Previous 7 Days'].push(session);
+                  } else if (sessionTime >= startOf30Days) {
+                    groups['Previous 30 Days'].push(session);
+                  } else {
+                    const d = new Date(sessionTime);
+                    const monthYear = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                    if (!olderGroups[monthYear]) {
+                      olderGroups[monthYear] = [];
+                    }
+                    olderGroups[monthYear].push(session);
+                  }
+                }
+
+                const allCategories: { category: string; sessions: ChatSession[] }[] = [];
+                for (const [category, list] of Object.entries(groups)) {
+                  if (list.length > 0) allCategories.push({ category, sessions: list });
+                }
+                for (const [category, list] of Object.entries(olderGroups)) {
+                  if (list.length > 0) allCategories.push({ category, sessions: list });
+                }
+
+                return allCategories.map(({ category, sessions }) => (
+                  <div key={category} className="history-date-group">
+                    <div className="history-section-header">
+                      <span>{category.toUpperCase()}</span>
+                    </div>
+
+                    <div className="history-items-scroll">
+                      {sessions.map(session => {
+                        const isActive = session.id === currentSessionId;
+                        const isHovered = session.id === hoveredSessionId;
+
+                        return (
+                          <div
+                            key={session.id}
+                            className={`history-row-item ${isActive ? 'active' : ''}`}
+                            onClick={() => onSelectSession(session.id)}
+                            onMouseEnter={() => setHoveredSessionId(session.id)}
+                            onMouseLeave={() => setHoveredSessionId(null)}
+                          >
+                            <div className="history-item-title-wrapper">
+                              <div className="history-item-marquee-track">
+                                <span className="history-item-title">{session.title}</span>
+                                <span className="history-item-title-duplicate">{session.title}</span>
+                              </div>
+                            </div>
+
+                            {(isHovered || isActive) && (
+                              <button
+                                className="history-delete-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSessionToDelete(session);
+                                }}
+                                title="Delete chat"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
+                ));
+              })()
+            ) : null}
           </div>
         )}
 
@@ -202,14 +275,33 @@ export default function Sidebar({
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             title="User Profile"
           >
-            <div className="user-avatar-circle">
-              <span>{userInitial}</span>
-            </div>
-            {!isCollapsed && (
-              <div className="user-info-text">
-                <span className="user-name">{userName || userEmail || 'Account'}</span>
-                {userEmail && <span className="user-email-text">{userEmail}</span>}
+            <div className="user-avatar-wrap">
+              <div className="user-avatar-circle">
+                {userAvatar ? (
+                  <img 
+                    src={userAvatar} 
+                    alt={userName || 'User'} 
+                    className="user-avatar-img"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <span>{userInitial}</span>
+                )}
               </div>
+              <span className="user-status-dot-active"></span>
+            </div>
+
+            {!isCollapsed && (
+              <>
+                <div className="user-info-text">
+                  <span className="user-name">{userName || userEmail || 'Account'}</span>
+                  {userEmail && <span className="user-email-text">{userEmail}</span>}
+                </div>
+                <ChevronsUpDown size={14} className="user-profile-chevron" />
+              </>
             )}
           </button>
 
@@ -217,8 +309,18 @@ export default function Sidebar({
           {isProfileMenuOpen && (
             <div className="profile-dropdown-menu anim-pop-in">
               <div className="dropdown-user-header">
-                <div className="dropdown-user-name">{userName || 'Account'}</div>
-                {userEmail && <div className="dropdown-user-email">{userEmail}</div>}
+                {userAvatar && (
+                  <img 
+                    src={userAvatar} 
+                    alt={userName || 'User'} 
+                    className="dropdown-user-avatar-img"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <div className="dropdown-user-text">
+                  <div className="dropdown-user-name">{userName || 'Account'}</div>
+                  {userEmail && <div className="dropdown-user-email">{userEmail}</div>}
+                </div>
               </div>
 
               <div className="dropdown-divider"></div>
@@ -385,7 +487,7 @@ export default function Sidebar({
               </button>
             </div>
             <p className="delete-modal-desc">
-              Are you sure you want to log out of <strong>Shubham Prajapati</strong> (Pro Workspace)? You will need to authenticate again to access your indexed documents and private chat sessions.
+              Are you sure you want to log out of <strong>{userName || userEmail || 'your account'}</strong>? You will need to authenticate again to access your indexed documents and private chat sessions.
             </p>
             <div className="delete-modal-actions">
               <button className="btn-cancel" onClick={() => setIsLogoutModalOpen(false)}>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Header/Navbar';
 import Sidebar from './components/Navigation/Sidebar';
 import ChatStudio from './components/Chat/ChatStudio';
@@ -6,84 +6,60 @@ import IngestionHub from './components/Ingestion/IngestionHub';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import AuthModal from './components/Auth/AuthModal';
 import { authApi } from './services/authApi';
+import { chatApi } from './services/chatApi';
 import { ThemeType, DocumentItem, ChatSession, UserProfile } from './types';
 import './App.css';
 
-function getSystemTheme(): ThemeType {
+function getInitialTheme(): ThemeType {
+  const saved = localStorage.getItem('app-theme') as ThemeType | null;
+  if (saved === 'dark' || saved === 'light') {
+    return saved;
+  }
   if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
     return 'dark';
   }
   return 'light';
 }
 
-function getStoredUserTheme(): ThemeType {
-  const saved = localStorage.getItem('app-theme') as ThemeType | null;
-  if (saved === 'dark' || saved === 'light') {
-    return saved;
-  }
-  return getSystemTheme();
+function getSessionIdFromPath(): string {
+  const match = window.location.pathname.match(/^\/c\/([^/]+)/);
+  return match ? match[1] : '';
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const saved = localStorage.getItem('noesis_auth');
-    return saved !== 'false';
-  });
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('noesis_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  // System theme for Login Page; User theme for App Workspace
-  const [systemTheme, setSystemTheme] = useState<ThemeType>(getSystemTheme);
-  const [userTheme, setUserTheme] = useState<ThemeType>(getStoredUserTheme);
-
+  const [theme, setTheme] = useState<ThemeType>(getInitialTheme);
   const [activeTab, setActiveTab] = useState<'chat' | 'documents'>('chat');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   
-  // Shared Live Document State across App, IngestionHub & ChatStudio
-  const [documents, setDocuments] = useState<DocumentItem[]>([
-    {
-      id: 'doc-1',
-      name: 'Tesla_2025_Annual_Report_10K.pdf',
-      format: 'PDF',
-      size: '4.8 MB',
-      status: 'ready',
-      date: 'Aug 27, 2026',
-      summary: 'Annual 10-K filing containing FY2025 financial statements, automotive delivery margins, and energy storage performance.',
-      previewText: 'ITEM 7. MANAGEMENT DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION. Automotive gross margin expanded to 19.8% with total revenues reaching $96.77B.'
-    },
-    {
-      id: 'doc-2',
-      name: 'Q4_Cloud_Infrastructure_Costs.xlsx',
-      format: 'Excel',
-      size: '1.2 MB',
-      status: 'ready',
-      date: 'Aug 27, 2026',
-      summary: 'Quarterly compute infrastructure budget across AWS, GCP, and specialized GPU clusters.',
-      previewText: 'Cluster US-EAST-VA-09: 64x H100 GPU compute burn rate $41,200/mo. Average utilization 94.2%.'
-    },
-    {
-      id: 'doc-3',
-      name: 'System_Architecture_Overview.md',
-      format: 'Markdown',
-      size: '340 KB',
-      status: 'ready',
-      date: 'Aug 26, 2026',
-      summary: 'Core engineering specification for microservices, API contracts, and message queues.',
-      previewText: 'Architecture spec detailing distributed ingestion workers, semantic chunking boundaries, and fault-tolerant resumes.'
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string>(getSessionIdFromPath);
+
+  const loadSessions = useCallback(async () => {
+    try {
+      const sessions = await chatApi.getSessions();
+      setChatSessions(sessions);
+    } catch (err) {
+      console.warn('Failed to load chat sessions:', err);
     }
-  ]);
+  }, []);
 
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([
-    { id: 'sess-1', title: 'Tesla FY2025 Revenue Analysis' },
-    { id: 'sess-2', title: 'Cloud Infrastructure Spend' }
-  ]);
-  const [currentSessionId, setCurrentSessionId] = useState<string>('sess-1');
+  // Listen to browser Back / Forward popstate events for /c/:sessionId routing
+  useEffect(() => {
+    const handlePopState = () => {
+      const pathSessionId = getSessionIdFromPath();
+      setCurrentSessionId(pathSessionId);
+      setActiveTab('chat');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
-  // Verify active backend session cookie on initial app mount
   useEffect(() => {
     const verifySession = async () => {
       try {
@@ -91,41 +67,38 @@ function App() {
         if (user) {
           setIsAuthenticated(true);
           setUserProfile(user);
-          localStorage.setItem('noesis_auth', 'true');
-          localStorage.setItem('noesis_user', JSON.stringify(user));
+          loadSessions();
+        } else {
+          setIsAuthenticated(false);
+          setUserProfile(null);
         }
-      } catch (err) {
-        console.log('Session verification checked:', err);
+      } catch {
+        setIsAuthenticated(false);
+        setUserProfile(null);
+      } finally {
+        setIsAuthChecking(false);
       }
     };
     verifySession();
-  }, []);
+  }, [loadSessions]);
 
-  // Continuous listener for OS System Theme changes
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleSystemThemeChange = (e: MediaQueryListEvent) => {
-      const nextTheme = e.matches ? 'dark' : 'light';
-      setSystemTheme(nextTheme);
-      // If user hasn't explicitly set a custom theme in app, follow system
       if (!localStorage.getItem('app-theme')) {
-        setUserTheme(nextTheme);
+        setTheme(e.matches ? 'dark' : 'light');
       }
     };
     mediaQuery.addEventListener('change', handleSystemThemeChange);
     return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
   }, []);
 
-  // Apply active theme (system default for Login; user preference for Workspace)
-  const activeTheme = isAuthenticated ? userTheme : systemTheme;
-
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', activeTheme);
+    document.documentElement.setAttribute('data-theme', theme);
     document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.classList.add(activeTheme);
-  }, [activeTheme]);
+    document.documentElement.classList.add(theme);
+  }, [theme]);
 
-  // Global keyboard shortcuts (Ctrl+K for search, Ctrl+B for sidebar toggle)
   useEffect(() => {
     const handleGlobalShortcuts = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -141,116 +114,161 @@ function App() {
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
   }, []);
 
-  // Toggle theme inside application (persists to localStorage for all future sessions)
-  const handleToggleTheme = () => {
-    setUserTheme(prev => {
-      const next: ThemeType = prev === 'dark' ? 'light' : 'dark';
-      localStorage.setItem('app-theme', next);
-      return next;
-    });
-  };
-
   const handleLogin = (user: UserProfile) => {
-    setIsAuthenticated(true);
     setUserProfile(user);
-    localStorage.setItem('noesis_auth', 'true');
-    if (user) {
-      localStorage.setItem('noesis_user', JSON.stringify(user));
-    }
+    setIsAuthenticated(true);
+    loadSessions();
   };
 
   const handleLogout = async () => {
-    await authApi.logout();
+    try {
+      await authApi.logout();
+    } catch (e) {
+      console.error(e);
+    }
     setIsAuthenticated(false);
     setUserProfile(null);
-    localStorage.setItem('noesis_auth', 'false');
-    localStorage.removeItem('noesis_user');
+    setChatSessions([]);
+    setCurrentSessionId('');
+    window.history.pushState(null, '', '/');
   };
 
-  const handleNewSession = () => {
-    const newId = `sess-${Date.now()}`;
-    const newSession: ChatSession = {
-      id: newId,
-      title: 'New Conversation'
-    };
-    setChatSessions(prev => [newSession, ...prev]);
-    setCurrentSessionId(newId);
+  const handleToggleTheme = () => {
+    const nextTheme: ThemeType = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('app-theme', nextTheme);
+  };
+
+  // Switch to session with URL routing
+  const handleSelectSession = (id: string) => {
+    setCurrentSessionId(id);
     setActiveTab('chat');
+    if (id) {
+      window.history.pushState(null, '', `/c/${id}`);
+    } else {
+      window.history.pushState(null, '', '/');
+    }
   };
 
-  const handleDeleteSession = (id: string) => {
+  // "New Chat" clears current session ID and sets URL to '/'
+  const handleNewSession = () => {
+    setCurrentSessionId('');
+    setActiveTab('chat');
+    window.history.pushState(null, '', '/');
+  };
+
+  const handleSessionCreated = useCallback((newSession: { id: string; title: string }) => {
+    setChatSessions(prev => {
+      const exists = prev.some(s => s.id === newSession.id);
+      if (exists) {
+        return prev.map(s => s.id === newSession.id ? { ...s, title: newSession.title || s.title } : s);
+      }
+      return [{ id: newSession.id, title: newSession.title || 'New Conversation' }, ...prev];
+    });
+    setCurrentSessionId(newSession.id);
+  }, []);
+
+  const handleSessionTitleUpdated = useCallback((sessionId: string, title: string) => {
+    setChatSessions(prev => 
+      prev.map(s => s.id === sessionId ? { ...s, title } : s)
+    );
+  }, []);
+
+  const handleDeleteSession = async (id: string) => {
+    try {
+      await chatApi.deleteSession(id);
+    } catch (err) {
+      console.error('Error deleting session:', err);
+    }
     setChatSessions(prev => prev.filter(s => s.id !== id));
+    if (currentSessionId === id) {
+      setCurrentSessionId('');
+      window.history.pushState(null, '', '/');
+    }
   };
 
-  // If user is logged out, display the System-Default Authentication / Login screen
-  if (!isAuthenticated) {
-    return <AuthModal onLogin={handleLogin} />;
+  if (isAuthChecking) {
+    return (
+      <div className={`app-root ${theme}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '32px', height: '32px', border: '3px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spinRing 0.8s linear infinite' }} />
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Verifying session...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="app-container-root">
-      {/* ChatGPT Sidebar */}
-      <Sidebar 
-        chatSessions={chatSessions}
-        currentSessionId={currentSessionId}
-        onSelectSession={(id: string) => {
-          setCurrentSessionId(id);
-          setActiveTab('chat');
-        }}
-        onNewSession={handleNewSession}
-        onDeleteSession={handleDeleteSession}
-        onOpenDocManager={() => setActiveTab('documents')}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-        docCount={documents.length}
-        onToggleTheme={handleToggleTheme}
-        theme={userTheme}
-        onLogout={handleLogout}
-        userProfile={userProfile}
-      />
+    <div className={`app-root ${theme}`}>
+      {!isAuthenticated && (
+        <AuthModal onLogin={handleLogin} />
+      )}
 
-      {/* Main Viewport */}
-      <div className="main-viewport-pane">
-        <Navbar 
-          theme={userTheme} 
-          onToggleTheme={handleToggleTheme}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
+      <div className={`app-workspace-container ${!isAuthenticated ? 'workspace-inert' : ''}`}>
+        <Sidebar 
+          chatSessions={chatSessions}
+          currentSessionId={currentSessionId}
+          onSelectSession={handleSelectSession}
+          onNewSession={handleNewSession}
+          onDeleteSession={handleDeleteSession}
+          onOpenDocManager={() => setActiveTab('documents')}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           docCount={documents.length}
+          theme={theme}
+          onToggleTheme={handleToggleTheme}
+          onLogout={handleLogout}
+          userProfile={userProfile}
         />
 
-        <main className="main-content-scroll">
-          {activeTab === 'chat' && (
-            <ChatStudio 
-              key={currentSessionId}
-              onNavigateToIngestion={() => setActiveTab('documents')}
-              docCount={documents.length}
-              documents={documents}
-              onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-            />
-          )}
+        <main className="app-main-viewport">
+          <Navbar 
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            docCount={documents.length}
+          />
 
-          {activeTab === 'documents' && (
-            <IngestionHub 
-              documents={documents}
-              setDocuments={setDocuments}
-            />
-          )}
+          <div className="app-content-stage">
+            {activeTab === 'chat' ? (
+              <ChatStudio 
+                currentSessionId={currentSessionId}
+                onSelectSession={handleSelectSession}
+                onSessionCreated={handleSessionCreated}
+                onSessionTitleUpdated={handleSessionTitleUpdated}
+                onNavigateToIngestion={() => setActiveTab('documents')}
+                docCount={documents.length}
+                documents={documents}
+                onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+              />
+            ) : (
+              <IngestionHub 
+                documents={documents}
+                setDocuments={setDocuments}
+              />
+            )}
+          </div>
         </main>
       </div>
 
-      {/* Spotlight Command Palette (Ctrl+K) */}
       <CommandPalette 
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
-        onSelectSession={(id: string) => {
-          setCurrentSessionId(id);
-          setActiveTab('chat');
+        onSelectSession={(id) => {
+          handleSelectSession(id);
+          setIsCommandPaletteOpen(false);
         }}
-        onNewSession={handleNewSession}
+        onNewSession={() => {
+          handleNewSession();
+          setIsCommandPaletteOpen(false);
+        }}
         chatSessions={chatSessions}
-        onOpenDocManager={() => setActiveTab('documents')}
+        onOpenDocManager={() => {
+          setActiveTab('documents');
+          setIsCommandPaletteOpen(false);
+        }}
       />
     </div>
   );
