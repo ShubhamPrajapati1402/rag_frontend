@@ -58,6 +58,46 @@ interface ChatStudioProps {
   userProfile?: UserProfile | null;
 }
 
+// Fast in-memory & localStorage session cache (0ms instant route switching, stale-while-revalidate)
+const sessionMemoryCache: Record<string, ChatMessage[]> = {};
+
+export function getCachedSessionMessages(sessionId: string): ChatMessage[] | null {
+  if (!sessionId) return null;
+  if (sessionMemoryCache[sessionId] && sessionMemoryCache[sessionId].length > 0) {
+    return sessionMemoryCache[sessionId];
+  }
+  try {
+    const raw = localStorage.getItem(`noesis_chat_${sessionId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        sessionMemoryCache[sessionId] = parsed;
+        return parsed;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+export function setCachedSessionMessages(sessionId: string, msgs: ChatMessage[]) {
+  if (!sessionId || !Array.isArray(msgs)) return;
+  sessionMemoryCache[sessionId] = msgs;
+  try {
+    localStorage.setItem(`noesis_chat_${sessionId}`, JSON.stringify(msgs));
+  } catch (e) {}
+}
+
+export function evictSessionCache(sessionId?: string) {
+  if (sessionId) {
+    delete sessionMemoryCache[sessionId];
+    try { localStorage.removeItem(`noesis_chat_${sessionId}`); } catch (e) {}
+  } else {
+    for (const key of Object.keys(sessionMemoryCache)) {
+      delete sessionMemoryCache[key];
+    }
+  }
+}
+
 export default function ChatStudio({ 
   currentSessionId,
   onSelectSession,
@@ -69,7 +109,9 @@ export default function ChatStudio({
   onOpenCommandPalette,
   userProfile
 }: ChatStudioProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    return getCachedSessionMessages(currentSessionId) || [];
+  });
   const [input, setInput] = useState<string>('');
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [streamingText, setStreamingText] = useState<string>('');
@@ -96,7 +138,7 @@ export default function ChatStudio({
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingSessionIdRef = useRef<string | null>(null);
 
-  // Load session messages when currentSessionId changes (sidebar click or URL landing)
+  // Load session messages when currentSessionId changes (stale-while-revalidate)
   useEffect(() => {
     // If a stream is active for this session, do not fetch from DB and overwrite live state
     if (streamingSessionIdRef.current && streamingSessionIdRef.current === currentSessionId) {
@@ -113,16 +155,27 @@ export default function ChatStudio({
       return;
     }
 
+    // 1. Instant Cache Render (0ms transition without jarring loading spinner)
+    const cached = getCachedSessionMessages(currentSessionId);
+    if (cached && cached.length > 0) {
+      setMessages(cached);
+      setIsLoadingHistory(false);
+    } else {
+      setMessages([]);
+      setIsLoadingHistory(true);
+    }
+
     let isSubscribed = true;
-    setIsLoadingHistory(true);
     setErrorMessage(null);
 
+    // 2. Background Revalidation from Backend
     chatApi.getSession(currentSessionId)
       .then((data) => {
         if (isSubscribed) {
           if (data && Array.isArray(data.messages)) {
             setMessages(data.messages);
-          } else {
+            setCachedSessionMessages(currentSessionId, data.messages);
+          } else if (!cached) {
             setMessages([]);
           }
         }
@@ -130,7 +183,9 @@ export default function ChatStudio({
       .catch((err) => {
         if (isSubscribed) {
           console.error('Error fetching session history:', err);
-          setErrorMessage('Could not load conversation history.');
+          if (!cached) {
+            setErrorMessage('Could not load conversation history.');
+          }
         }
       })
       .finally(() => {
@@ -456,7 +511,7 @@ export default function ChatStudio({
         }
       });
 
-      // Stream completed successfully, save final AI message into state
+      // Stream completed successfully, save final AI message into state and update session cache
       if (accumulatedText.trim()) {
         const aiMsg: ChatMessage = {
           id: `ai-${Date.now()}`,
@@ -465,7 +520,13 @@ export default function ChatStudio({
           sources: accumulatedCitations.length > 0 ? accumulatedCitations : undefined,
           createdAt: new Date().toISOString()
         };
-        setMessages(prev => [...prev, aiMsg]);
+        setMessages(prev => {
+          const nextMsgs = [...prev, aiMsg];
+          if (activeSession) {
+            setCachedSessionMessages(activeSession, nextMsgs);
+          }
+          return nextMsgs;
+        });
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {

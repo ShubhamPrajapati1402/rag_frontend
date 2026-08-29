@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Header/Navbar';
 import Sidebar from './components/Navigation/Sidebar';
-import ChatStudio from './components/Chat/ChatStudio';
+import ChatStudio, { evictSessionCache } from './components/Chat/ChatStudio';
 import IngestionHub from './components/Ingestion/IngestionHub';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import AuthModal from './components/Auth/AuthModal';
@@ -143,6 +143,7 @@ function App() {
     } catch (e) {
       console.error(e);
     }
+    evictSessionCache();
     setIsAuthenticated(false);
     setUserProfile(null);
     setChatSessions([]);
@@ -197,6 +198,7 @@ function App() {
     } catch (err) {
       console.error('Error deleting session:', err);
     }
+    evictSessionCache(id);
     setChatSessions(prev => prev.filter(s => s.id !== id));
     if (currentSessionId === id) {
       setCurrentSessionId('');
