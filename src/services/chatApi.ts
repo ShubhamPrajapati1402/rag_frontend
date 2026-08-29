@@ -13,7 +13,7 @@ export function normalizeCitation(item: any, idx: number): SourceCitation {
     };
   }
 
-  const fileName = item.fileName || item.filename || item.file_name || item.name || 'Document';
+  const fileName = item.filename || item.fileName || item.file_name || item.name || 'Document';
   const ext = fileName.split('.').pop()?.toUpperCase() || '';
   let fileType = item.fileType || item.file_type || item.format;
   if (!fileType) {
@@ -27,8 +27,8 @@ export function normalizeCitation(item: any, idx: number): SourceCitation {
     fileType = 'Excel';
   }
 
-  let page = item.page !== undefined && item.page !== null ? String(item.page) : (
-    item.page_number !== undefined && item.page_number !== null ? String(item.page_number) : (
+  let page = item.page_number !== undefined && item.page_number !== null ? String(item.page_number) : (
+    item.page !== undefined && item.page !== null ? String(item.page) : (
       item.pageNum !== undefined && item.pageNum !== null ? String(item.pageNum) : ''
     )
   );
@@ -36,7 +36,7 @@ export function normalizeCitation(item: any, idx: number): SourceCitation {
     page = `Page ${page}`;
   }
 
-  let sheet = item.sheet || item.sheet_name || item.sheetName || '';
+  let sheet = item.sheet_name || item.sheet || item.sheetName || '';
   if (sheet && !String(sheet).toLowerCase().startsWith('sheet')) {
     sheet = `Sheet: ${sheet}`;
   }
@@ -59,7 +59,8 @@ export function normalizeCitation(item: any, idx: number): SourceCitation {
     sheet: sheet || undefined,
     similarity: similarity || (page ? 'Source reference' : 'Relevant match'),
     text: item.text || item.content || item.snippet || item.preview || item.previewText || item.chunk_text || '',
-    documentId: item.documentId || item.document_id || item.doc_id
+    documentId: item.documentId || item.document_id || item.doc_id,
+    score: item.score
   };
 }
 
@@ -68,7 +69,7 @@ export interface StreamChatOptions {
   sessionId?: string | null;
   documentIds?: string[] | null;
   onMetadata?: (meta: { session_id?: string; title?: string }) => void;
-  onNodeStatus?: (status: { node: string; message?: string; detail?: any }) => void;
+  onNodeStatus?: (status: { node: string; message?: string; thought?: string; detail?: any }) => void;
   onToken?: (token: string) => void;
   onCitations?: (citations: SourceCitation[]) => void;
   onDone?: (data?: { session_id?: string; title?: string }) => void;
@@ -118,7 +119,7 @@ export const chatApi = {
           const errData = await response.json();
           errMessage = errData.detail || errData.message || errMessage;
         } catch {
-          // If response is not JSON
+          // Non-JSON response fallback
         }
         throw new Error(errMessage);
       }
@@ -162,7 +163,7 @@ export const chatApi = {
           try {
             parsedData = JSON.parse(rawData);
           } catch {
-            // Raw text
+            // Raw text or token string
           }
 
           switch (eventName) {
@@ -173,14 +174,18 @@ export const chatApi = {
               }
               break;
 
+            case 'trace':
             case 'node_status':
               if (onNodeStatus) {
                 if (typeof parsedData === 'string') {
-                  onNodeStatus({ node: parsedData });
+                  onNodeStatus({ node: 'trace', message: parsedData, thought: parsedData });
                 } else if (typeof parsedData === 'object' && parsedData !== null) {
+                  const nodeName = parsedData.step || parsedData.node || parsedData.name || parsedData.status || 'trace';
+                  const thoughtText = parsedData.thought || parsedData.message || parsedData.thought_process;
                   onNodeStatus({
-                    node: parsedData.node || parsedData.name || parsedData.status || 'processing',
-                    message: parsedData.message,
+                    node: nodeName,
+                    message: thoughtText || parsedData.message,
+                    thought: thoughtText,
                     detail: parsedData
                   });
                 }
@@ -192,10 +197,10 @@ export const chatApi = {
                 let tokenStr = '';
                 if (typeof parsedData === 'string') {
                   tokenStr = parsedData;
-                } else if (parsedData && typeof parsedData.token === 'string') {
-                  tokenStr = parsedData.token;
                 } else if (parsedData && typeof parsedData.text === 'string') {
                   tokenStr = parsedData.text;
+                } else if (parsedData && typeof parsedData.token === 'string') {
+                  tokenStr = parsedData.token;
                 } else if (parsedData && typeof parsedData.content === 'string') {
                   tokenStr = parsedData.content;
                 }
@@ -233,8 +238,10 @@ export const chatApi = {
               throw new Error(errMsg);
 
             default:
-              // Generic message event fallback
-              if (parsedData?.token && onToken) {
+              // Generic fallback
+              if (parsedData?.text && onToken) {
+                onToken(parsedData.text);
+              } else if (parsedData?.token && onToken) {
                 onToken(parsedData.token);
               }
               break;
@@ -255,10 +262,10 @@ export const chatApi = {
           }
         }
         const rawData = dataLines.join('\n');
-        if (eventName === 'token' && onToken && rawData) {
+        if ((eventName === 'token' || eventName === 'message') && onToken && rawData) {
           try {
             const parsed = JSON.parse(rawData);
-            onToken(parsed.token || parsed.text || rawData);
+            onToken(parsed.text || parsed.token || rawData);
           } catch {
             onToken(rawData);
           }
@@ -271,7 +278,6 @@ export const chatApi = {
         }
       }
 
-      // Notify completion if onDone wasn't already explicitly called with event: done
       if (onDone) {
         onDone();
       }

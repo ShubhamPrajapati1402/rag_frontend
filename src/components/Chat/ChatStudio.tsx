@@ -258,7 +258,7 @@ export default function ChatStudio({
           const display = getNodeDisplay(status.node);
           setActiveNodeStatus({
             node: status.node,
-            message: status.message || display.label
+            message: status.thought || status.message || display.label
           });
         },
         onToken: (token) => {
