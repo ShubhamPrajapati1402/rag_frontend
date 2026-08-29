@@ -70,10 +70,18 @@ export default function ChatStudio({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const activeSessionIdRef = useRef<string>(currentSessionId);
 
-  // Load session messages when currentSessionId changes
+  // Load session messages when currentSessionId changes from outside (e.g. sidebar click)
   useEffect(() => {
     let isCancelled = false;
+
+    // If currentSessionId matches what is already loaded/active in this view, don't re-fetch and overwrite live state
+    if (currentSessionId === activeSessionIdRef.current) {
+      return;
+    }
+
+    activeSessionIdRef.current = currentSessionId;
 
     if (!currentSessionId) {
       setMessages([]);
@@ -245,6 +253,7 @@ export default function ChatStudio({
         onMetadata: (meta) => {
           if (meta.session_id) {
             activeSession = meta.session_id;
+            activeSessionIdRef.current = meta.session_id;
             onSelectSession(meta.session_id);
             if (onSessionCreated) {
               onSessionCreated({
@@ -337,8 +346,9 @@ export default function ChatStudio({
 
   return (
     <div className="chatgpt-canvas-root">
-      {/* Scrollable Conversation Flow */}
-      <div className="chatgpt-messages-viewport">
+      {/* Full-width scroll area (scrollbar at the far right edge of the screen) */}
+      <div className="chatgpt-scroll-area">
+        <div className="chatgpt-messages-viewport">
         {messages.length === 0 && !isStreaming ? (
           /* Symmetrical 4-Plane Gyroscopic Solar System */
           <div className="chatgpt-hero-empty anim-fade-in">
@@ -552,6 +562,7 @@ export default function ChatStudio({
 
         <div ref={messagesEndRef} />
       </div>
+    </div>
 
       {/* Floating Bottom Console */}
       <div className="chatgpt-input-wrapper">

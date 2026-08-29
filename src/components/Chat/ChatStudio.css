@@ -1,25 +1,57 @@
 .chatgpt-canvas-root {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  height: calc(100vh - 52px);
+  height: 100%;
   width: 100%;
   position: relative;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   background-color: var(--bg-app);
 }
 
-.chatgpt-messages-viewport {
+/* Full-width scrollable pane - scrollbar is positioned at the far right edge of the screen */
+.chatgpt-scroll-area {
   flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.chatgpt-scroll-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chatgpt-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chatgpt-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+[data-theme="light"] .chatgpt-scroll-area {
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+[data-theme="light"] .chatgpt-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+/* Centered conversation content container */
+.chatgpt-messages-viewport {
+  width: 100%;
+  max-width: 768px;
+  margin: 0 auto;
+  padding: 24px 20px 32px 20px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 24px;
-  max-width: 768px;
-  width: 100%;
-  padding: 24px 20px 170px 20px;
-  margin: 0 auto;
-  min-height: 100%;
 }
 
 /* ==========================================================================
@@ -555,24 +587,18 @@
    ========================================================================== */
 
 .chatgpt-input-wrapper {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: 768px;
+  position: relative;
   width: 100%;
+  max-width: 768px;
+  margin: 0 auto;
   padding: 0 20px 14px 20px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: linear-gradient(180deg, transparent 0%, var(--bg-app) 30%);
+  background: var(--bg-app);
   z-index: 30;
-  pointer-events: none;
-}
-
-.chatgpt-input-wrapper > * {
-  pointer-events: auto;
+  flex-shrink: 0;
 }
 
 /* Suggestion Pills Row above Input Bar */
@@ -831,9 +857,8 @@
   }
 
   .chatgpt-input-wrapper {
-    width: calc(100% - 20px);
-    bottom: 8px;
-    padding-bottom: 6px;
+    width: 100%;
+    padding: 0 12px 10px 12px;
   }
 
   .chatgpt-input-bar {
