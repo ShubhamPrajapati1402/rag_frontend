@@ -93,6 +93,12 @@ function App() {
   }, [loadSessions, loadDocuments]);
 
   useEffect(() => {
+    if (isAuthenticated && activeTab === 'documents') {
+      loadDocuments();
+    }
+  }, [activeTab, isAuthenticated, loadDocuments]);
+
+  useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleSystemThemeChange = (e: MediaQueryListEvent) => {
       if (!localStorage.getItem('app-theme')) {
@@ -253,6 +259,7 @@ function App() {
                 docCount={documents.length}
                 documents={documents}
                 onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+                userProfile={userProfile}
               />
             ) : (
               <IngestionHub 

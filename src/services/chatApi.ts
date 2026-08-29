@@ -531,23 +531,64 @@ export const chatApi = {
       });
       if (!res.ok) return [];
       const data = await res.json();
-      return Array.isArray(data) ? data.map((d: any) => ({
-        id: String(d.id || d.doc_id || ''),
-        name: String(d.name || d.filename || d.file_name || 'Unnamed Document'),
-        format: String(d.format || d.fileType || d.file_type || 'TXT'),
-        size: String(d.size || ''),
-        status: (d.status === 'ready' || d.status === 'processing' || d.status === 'error') ? d.status : 'ready',
-        date: String(d.date || d.created_at || d.uploaded_at || 'Just now'),
-        summary: String(d.summary || 'Boundary layout parsed and indexed.'),
-        previewText: String(d.previewText || d.preview || 'No preview available')
-      })) : [];
+      const rawList = Array.isArray(data) ? data : (data?.documents || data?.data || data?.items || []);
+      return Array.isArray(rawList) ? rawList.map((d: any) => {
+        let fmt = d.format || d.file_type || d.fileType;
+        if (!fmt && d.filename) {
+          const ext = d.filename.split('.').pop()?.toUpperCase();
+          fmt = ext || 'TXT';
+        }
+        return {
+          id: String(d.id || d.doc_id || ''),
+          name: String(d.filename || d.name || d.file_name || 'Document'),
+          format: String(fmt || 'TXT'),
+          size: String(d.size || (d.chunk_count ? `${d.chunk_count} chunks` : '')),
+          status: (d.status === 'ready' || d.status === 'processing' || d.status === 'error' || d.status === 'COMPLETED') 
+            ? (d.status === 'COMPLETED' ? 'ready' : d.status) 
+            : 'ready',
+          date: d.created_at ? new Date(d.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) + ' IST' : 'Just now',
+          summary: String(d.summary || d.description || ''),
+          previewText: String(d.extracted_preview || d.previewText || d.preview_text || d.preview || d.content || d.text || '')
+        };
+      }) : [];
     } catch (err) {
       console.warn('Failed to load documents:', err);
       return [];
     }
   },
 
-  // 7. Delete an ingested document
+  // 7. Get full document content preview
+  getDocumentPreview: async (documentId: string | number): Promise<DocumentItem | null> => {
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/ingest/documents/${documentId}/preview`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include'
+      });
+      if (!res.ok) return null;
+      const d = await res.json();
+      let fmt = d.format || d.file_type;
+      if (!fmt && d.filename) {
+        const ext = d.filename.split('.').pop()?.toUpperCase();
+        fmt = ext || 'TXT';
+      }
+      return {
+        id: String(d.id),
+        name: d.filename || 'Document',
+        format: String(fmt || 'TXT'),
+        size: d.size || '',
+        status: (d.status === 'COMPLETED' || d.status === 'ready') ? 'ready' : (d.status || 'ready'),
+        date: d.created_at ? new Date(d.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) + ' IST' : 'Just now',
+        summary: d.summary || '',
+        previewText: d.extracted_preview || d.previewText || d.preview || ''
+      };
+    } catch (err) {
+      console.warn(`Failed to fetch preview for doc ${documentId}:`, err);
+      return null;
+    }
+  },
+
+  // 8. Delete an ingested document
   deleteDocument: async (docId: string): Promise<boolean> => {
     try {
       const res = await fetch(`${BACKEND_BASE_URL}/api/v1/ingest/documents/${docId}`, {
