@@ -15,6 +15,7 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { DocumentItem } from '../../types';
+import { chatApi } from '../../services/chatApi';
 import './IngestionHub.css';
 
 interface IngestionHubProps {
@@ -28,6 +29,8 @@ export default function IngestionHub({ documents, setDocuments, onUpdateDocCount
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ name: string; progress: number } | null>(null);
+  const [pipelineLogs, setPipelineLogs] = useState<string[]>([]);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -42,42 +45,112 @@ export default function IngestionHub({ documents, setDocuments, onUpdateDocCount
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    simulateFileUpload('Customer_Satisfaction_Survey_2026.csv', 'CSV', '820 KB');
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      Array.from(e.dataTransfer.files).forEach(file => {
+        uploadFile(file);
+      });
+    }
   };
 
-  const simulateFileUpload = (fileName: string, format: string, size: string) => {
-    setUploadProgress({ name: fileName, progress: 20 });
+  const handleBrowseClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    fileInputRef.current?.click();
+  };
 
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (!prev) return null;
-        if (prev.progress >= 100) {
-          clearInterval(interval);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.target.files && e.target.files.length > 0) {
+      Array.from(e.target.files).forEach(file => {
+        uploadFile(file);
+      });
+      e.target.value = ''; // Reset file input to prevent double triggers
+    }
+  };
+
+  const uploadFile = async (file: File) => {
+    const ext = file.name.split('.').pop()?.toUpperCase() || 'TXT';
+    let format = ext;
+    if (ext === 'XLSX' || ext === 'XLS') format = 'Excel';
+    
+    // Accurate size formatting to prevent 0 KB
+    const sizeKB = file.size / 1024;
+    const sizeStr = sizeKB > 1024 
+      ? `${(sizeKB / 1024).toFixed(1)} MB` 
+      : sizeKB < 0.1 
+        ? `${file.size} B` 
+        : `${sizeKB.toFixed(1)} KB`;
+
+    setUploadProgress({ name: file.name, progress: 0 });
+    setPipelineLogs([`[01/05] Reading document bytes and metadata...`]);
+
+    try {
+      await chatApi.streamUpload({
+        file,
+        onProgress: (p) => {
+          setUploadProgress({ name: file.name, progress: p.percent });
+          setPipelineLogs(logs => {
+            const newLine = `[${p.stage.toUpperCase()}] ${p.message}`;
+            if (logs.includes(newLine)) return logs;
+            return [...logs, newLine];
+          });
+        },
+        onDone: (data) => {
+          setUploadProgress({ name: file.name, progress: 100 });
+          setPipelineLogs(logs => [...logs, `[SUCCESS] Document ingestion and vector space indexing complete!`]);
+          
           setTimeout(() => {
             const newDoc: DocumentItem = {
-              id: `doc-${Date.now()}`,
-              name: fileName,
+              id: String(data?.id || data?.doc_id || `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`),
+              name: file.name,
               format: format,
-              size: size,
+              size: sizeStr,
               status: 'ready',
               date: 'Just now',
-              summary: 'Structured customer satisfaction ratings, response times, and NPS scores.',
-              previewText: 'Customer feedback entries with 98.4% satisfaction rating across 420 response surveys.'
+              summary: String(data?.summary || `Semantic boundary index containing chunks for ${file.name}.`),
+              previewText: String(data?.previewText || data?.preview || 'All structural text regions and tokens indexed inside vector space.')
             };
-            setDocuments(curr => [newDoc, ...curr]);
+            setDocuments(curr => {
+              // Deduplicate to prevent double-insert bugs
+              if (curr.some(d => d.name === file.name && d.size === sizeStr)) {
+                return curr;
+              }
+              return [newDoc, ...curr];
+            });
             setUploadProgress(null);
             if (onUpdateDocCount) onUpdateDocCount(documents.length + 1);
-          }, 400);
-          return { ...prev, progress: 100 };
+          }, 600);
+        },
+        onError: (err) => {
+          setPipelineLogs(logs => [...logs, `[ERROR] ${err.message || err}`]);
+          setTimeout(() => setUploadProgress(null), 4000);
         }
-        return { ...prev, progress: prev.progress + 25 };
       });
-    }, 200);
+    } catch (err: any) {
+      setPipelineLogs(logs => [...logs, `[ERROR] ${err.message || err}`]);
+      setTimeout(() => setUploadProgress(null), 4000);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setDocuments(prev => prev.filter(d => d.id !== id));
-    if (onUpdateDocCount) onUpdateDocCount(documents.length - 1);
+  const handleDelete = async (id: string) => {
+    const doc = documents.find(d => d.id === id);
+    if (!doc) return;
+
+    const confirmed = window.confirm(`Are you sure you want to permanently delete "${doc.name}"? This will also remove all associated vector search indexes.`);
+    if (!confirmed) return;
+
+    try {
+      const ok = await chatApi.deleteDocument(id);
+      if (ok) {
+        setDocuments(prev => prev.filter(d => d.id !== id));
+        if (onUpdateDocCount) onUpdateDocCount(documents.length - 1);
+      } else {
+        alert('Failed to delete document from server.');
+      }
+    } catch (err: any) {
+      alert(`Error deleting document: ${err.message || err}`);
+    }
   };
 
   const filteredDocs = documents.filter(d => 
@@ -109,10 +182,18 @@ export default function IngestionHub({ documents, setDocuments, onUpdateDocCount
           <div className="dropzone-actions-bar">
             <button 
               className="btn-browse-file"
-              onClick={() => simulateFileUpload('Financial_Model_Q3_Projection.xlsx', 'Excel', '2.4 MB')}
+              onClick={handleBrowseClick}
             >
               Browse files
             </button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleFileChange}
+              multiple
+              accept=".pdf,.docx,.xlsx,.xls,.csv,.pptx,.md,.txt"
+            />
             <span className="max-size-hint">Maximum upload size: 50MB</span>
           </div>
         </div>
@@ -129,6 +210,23 @@ export default function IngestionHub({ documents, setDocuments, onUpdateDocCount
                 className="progress-fill-bar" 
                 style={{ width: `${uploadProgress.progress}%` }}
               ></div>
+            </div>
+
+            {/* Pipeline Vector Indexing Logs Terminal */}
+            <div className="pipeline-terminal-box">
+              <div className="terminal-header">
+                <span className="terminal-dot red"></span>
+                <span className="terminal-dot yellow"></span>
+                <span className="terminal-dot green"></span>
+                <span className="terminal-title">Vector Ingestion Pipeline Log</span>
+              </div>
+              <div className="terminal-body">
+                {pipelineLogs.map((log, idx) => (
+                  <div key={idx} className="terminal-log-line">
+                    <span className="terminal-log-bullet">&gt;</span> {log}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

@@ -49,6 +49,15 @@ function App() {
     }
   }, []);
 
+  const loadDocuments = useCallback(async () => {
+    try {
+      const docs = await chatApi.getDocuments();
+      setDocuments(docs);
+    } catch (err) {
+      console.warn('Failed to load documents:', err);
+    }
+  }, []);
+
   // Listen to browser Back / Forward popstate events for /c/:sessionId routing
   useEffect(() => {
     const handlePopState = () => {
@@ -68,6 +77,7 @@ function App() {
           setIsAuthenticated(true);
           setUserProfile(user);
           loadSessions();
+          loadDocuments();
         } else {
           setIsAuthenticated(false);
           setUserProfile(null);
@@ -80,7 +90,7 @@ function App() {
       }
     };
     verifySession();
-  }, [loadSessions]);
+  }, [loadSessions, loadDocuments]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -118,6 +128,7 @@ function App() {
     setUserProfile(user);
     setIsAuthenticated(true);
     loadSessions();
+    loadDocuments();
   };
 
   const handleLogout = async () => {
