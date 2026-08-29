@@ -229,7 +229,10 @@ export const chatApi = {
               if (onDone) {
                 onDone(typeof parsedData === 'object' && parsedData !== null ? parsedData : undefined);
               }
-              break;
+              try {
+                await reader.cancel();
+              } catch {}
+              return;
 
             case 'error':
               const errMsg = typeof parsedData === 'object' && parsedData?.detail 

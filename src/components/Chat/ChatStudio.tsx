@@ -277,6 +277,7 @@ export default function ChatStudio({
         onToken: (token) => {
           accumulatedText += token;
           setStreamingText(accumulatedText);
+          setActiveNodeStatus(null);
         },
         onCitations: (citations) => {
           accumulatedCitations = citations;
