@@ -12,24 +12,34 @@ export interface DocumentItem {
 }
 
 export interface SourceCitation {
-  id: string;
+  id?: string;
   fileName: string;
-  fileType: string;
-  page: string;
-  similarity: string;
+  fileType?: string;
+  page?: string;
+  sheet?: string;
+  similarity?: string;
   text: string;
+  documentId?: string;
+  score?: number | string;
 }
+
+export type LangGraphNode = 'summarizer' | 'router' | 'retriever' | 'grader' | 'generator' | string;
 
 export interface ChatMessage {
   id: number | string;
   type: 'user' | 'ai';
   content: string;
   sources?: SourceCitation[];
+  nodeStatus?: string;
+  createdAt?: string;
 }
 
 export interface ChatSession {
   id: string;
   title: string;
+  message_count?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface UserProfile {

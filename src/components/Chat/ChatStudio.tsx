@@ -13,12 +13,22 @@ import {
   Plus,
   Brain,
   Cpu,
-  Zap
+  Zap,
+  AlertCircle,
+  Sparkles,
+  GitFork,
+  Database,
+  CheckCheck
 } from 'lucide-react';
 import { DocumentItem, ChatMessage, SourceCitation } from '../../types';
+import { chatApi } from '../../services/chatApi';
 import './ChatStudio.css';
 
 interface ChatStudioProps {
+  currentSessionId: string;
+  onSelectSession: (id: string) => void;
+  onSessionCreated?: (session: { id: string; title: string }) => void;
+  onSessionTitleUpdated?: (sessionId: string, title: string) => void;
   onNavigateToIngestion: () => void;
   docCount: number;
   documents?: DocumentItem[];
@@ -26,6 +36,10 @@ interface ChatStudioProps {
 }
 
 export default function ChatStudio({ 
+  currentSessionId,
+  onSelectSession,
+  onSessionCreated,
+  onSessionTitleUpdated,
   onNavigateToIngestion, 
   docCount, 
   documents = [], 
@@ -33,11 +47,14 @@ export default function ChatStudio({
 }: ChatStudioProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState<string>('');
-  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [streamingText, setStreamingText] = useState<string>('');
+  const [streamingCitations, setStreamingCitations] = useState<SourceCitation[]>([]);
+  const [activeNodeStatus, setActiveNodeStatus] = useState<{ node: string; message: string } | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<number | string | null>(null);
   const [activeSource, setActiveSource] = useState<SourceCitation | null>(null);
-  const [streamingText, setStreamingText] = useState<string>('');
-  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
 
   // 360° Interactive Cursor / Touch Rotation Physics
   const [rotX, setRotX] = useState<number>(0);
@@ -52,10 +69,50 @@ export default function ChatStudio({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Load session messages when currentSessionId changes
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (!currentSessionId) {
+      setMessages([]);
+      setStreamingText('');
+      setStreamingCitations([]);
+      setActiveNodeStatus(null);
+      setErrorMessage(null);
+      return;
+    }
+
+    const loadSessionHistory = async () => {
+      setIsLoadingHistory(true);
+      setErrorMessage(null);
+      try {
+        const data = await chatApi.getSession(currentSessionId);
+        if (!isCancelled && data) {
+          setMessages(data.messages);
+        }
+      } catch (err: any) {
+        if (!isCancelled) {
+          console.error('Error fetching session history:', err);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingHistory(false);
+        }
+      }
+    };
+
+    loadSessionHistory();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentSessionId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isSearching, streamingText]);
+  }, [messages, activeNodeStatus, streamingText]);
 
   // Global Ctrl+K
   useEffect(() => {
@@ -84,7 +141,6 @@ export default function ChatStudio({
     const deltaX = clientX - dragStartRef.current.x;
     const deltaY = clientY - dragStartRef.current.y;
     
-    // Natural 3D rotational sensitivity
     setRotY(dragStartRef.current.rotY + deltaX * 0.95);
     setRotX(dragStartRef.current.rotX - deltaY * 0.95);
   }, [isDragging]);
@@ -131,77 +187,121 @@ export default function ChatStudio({
     });
   }, [documents]);
 
-  const handleSend = (e?: React.FormEvent | null, overridePrompt?: string) => {
+  const getNodeDisplay = (nodeName: string): { label: string; icon: React.ReactNode } => {
+    const name = nodeName.toLowerCase();
+    if (name.includes('summariz')) {
+      return { label: 'Context Summarization', icon: <Brain size={13} /> };
+    }
+    if (name.includes('rout')) {
+      return { label: 'Query Intent Routing', icon: <GitFork size={13} /> };
+    }
+    if (name.includes('retriev')) {
+      return { label: 'Vector & Keyword Retrieval', icon: <Database size={13} /> };
+    }
+    if (name.includes('grad')) {
+      return { label: 'Relevance Grading & Verification', icon: <CheckCheck size={13} /> };
+    }
+    if (name.includes('generat')) {
+      return { label: 'Stateful Synthesis', icon: <Sparkles size={13} /> };
+    }
+    return { label: `Processing (${nodeName})`, icon: <Zap size={13} /> };
+  };
+
+  const handleSend = async (e?: React.FormEvent | null, overridePrompt?: string) => {
     e?.preventDefault();
     const queryToSend = overridePrompt || input.trim();
-    if (!queryToSend || isSearching || isStreaming) return;
+    if (!queryToSend || isStreaming) return;
 
     setInputHistory(prev => [queryToSend, ...prev]);
     setHistoryIndex(-1);
     setTempDraft('');
+    setErrorMessage(null);
 
     const userMsg: ChatMessage = {
-      id: Date.now(),
+      id: `user-${Date.now()}`,
       type: 'user',
       content: queryToSend
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
-    setIsSearching(true);
+    setIsStreaming(true);
+    setStreamingText('');
+    setStreamingCitations([]);
+    setActiveNodeStatus({ node: 'router', message: 'Analyzing query intent...' });
 
-    // Simulate ChatGPT retrieval and token streaming
-    setTimeout(() => {
-      setIsSearching(false);
-      setIsStreaming(true);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-      const isFinancial = queryToSend.toLowerCase().includes('revenue') || queryToSend.toLowerCase().includes('margin') || queryToSend.toLowerCase().includes('cost') || queryToSend.toLowerCase().includes('tesla') || queryToSend.toLowerCase().includes('table') || queryToSend.toLowerCase().includes('profit') || queryToSend.toLowerCase().includes('pdf');
+    let accumulatedText = '';
+    let accumulatedCitations: SourceCitation[] = [];
+    let activeSession = currentSessionId;
 
-      const fullResponse = isFinancial 
-        ? `### Financial Performance Breakdown\n\nBased on your indexed documents and SEC 10-K report:\n\n- **Total FY2025 Revenue**: **$96.77 Billion** (up 14.2% year-over-year).\n- **Automotive Gross Margin**: Reached **19.8%** in Q4 following automated manufacturing scaling.\n- **Cloud GPU Compute Spend**: **$41,200/month** for the 64x H100 GPU cluster (averaging 94.2% utilization).\n\nAll figures match the extracted table rows directly from your uploaded source files.`
-        : `I searched through your **${docCount} uploaded documents** and found the exact relevant sections matching your inquiry.\n\n- **Document Context**: Extracted with high similarity matching.\n- **Data Verification**: Verified across structural boundaries with zero data loss.`;
-
-      const words = fullResponse.split(' ');
-      let currentWordIndex = 0;
-      setStreamingText('');
-
-      const streamInterval = setInterval(() => {
-        if (currentWordIndex < words.length) {
-          setStreamingText(prev => prev + (prev ? ' ' : '') + words[currentWordIndex]);
-          currentWordIndex++;
-        } else {
-          clearInterval(streamInterval);
-          setIsStreaming(false);
-
-          const newAiMsg: ChatMessage = {
-            id: Date.now() + 1,
-            type: 'ai',
-            content: fullResponse,
-            sources: documents.length > 0 ? [
-              {
-                id: 'src-res-1',
-                fileName: documents[0].name,
-                fileType: documents[0].format,
-                page: 'Page 42',
-                similarity: '95% match',
-                text: documents[0].previewText || 'ITEM 7: Automotive gross margin expanded to 19.8% with total revenues reaching $96.77B.'
-              },
-              ...(documents[1] ? [{
-                id: 'src-res-2',
-                fileName: documents[1].name,
-                fileType: documents[1].format,
-                page: 'Sheet: Compute_Clusters',
-                similarity: '91% match',
-                text: documents[1].previewText || 'Cluster US-EAST-VA-09: 64x H100 GPU compute burn rate $41,200/mo. Average utilization 94.2%.'
-              }] : [])
-            ] : []
-          };
-
-          setMessages(prev => [...prev, newAiMsg]);
-          setStreamingText('');
+    try {
+      await chatApi.streamChat({
+        question: queryToSend,
+        sessionId: activeSession || null,
+        signal: controller.signal,
+        onMetadata: (meta) => {
+          if (meta.session_id) {
+            activeSession = meta.session_id;
+            onSelectSession(meta.session_id);
+            if (onSessionCreated) {
+              onSessionCreated({
+                id: meta.session_id,
+                title: meta.title || queryToSend.slice(0, 32)
+              });
+            }
+          }
+        },
+        onNodeStatus: (status) => {
+          const display = getNodeDisplay(status.node);
+          setActiveNodeStatus({
+            node: status.node,
+            message: status.message || display.label
+          });
+        },
+        onToken: (token) => {
+          accumulatedText += token;
+          setStreamingText(accumulatedText);
+        },
+        onCitations: (citations) => {
+          accumulatedCitations = citations;
+          setStreamingCitations(citations);
+        },
+        onDone: (data) => {
+          if (data?.title && activeSession && onSessionTitleUpdated) {
+            onSessionTitleUpdated(activeSession, data.title);
+          }
+        },
+        onError: (err) => {
+          console.error('Chat stream failed:', err);
+          setErrorMessage(err.message || 'Failed to receive response from backend.');
         }
-      }, 30);
-    }, 900);
+      });
+
+      // Stream completed successfully, save final AI message into state
+      if (accumulatedText.trim()) {
+        const aiMsg: ChatMessage = {
+          id: `ai-${Date.now()}`,
+          type: 'ai',
+          content: accumulatedText,
+          sources: accumulatedCitations.length > 0 ? accumulatedCitations : undefined
+        };
+        setMessages(prev => [...prev, aiMsg]);
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.error('Unhandled stream error:', err);
+        setErrorMessage(err.message || 'Connection error with RAG backend.');
+      }
+    } finally {
+      setIsStreaming(false);
+      setStreamingText('');
+      setStreamingCitations([]);
+      setActiveNodeStatus(null);
+      abortControllerRef.current = null;
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -239,7 +339,7 @@ export default function ChatStudio({
     <div className="chatgpt-canvas-root">
       {/* Scrollable Conversation Flow */}
       <div className="chatgpt-messages-viewport">
-        {messages.length === 0 ? (
+        {messages.length === 0 && !isStreaming ? (
           /* Symmetrical 4-Plane Gyroscopic Solar System */
           <div className="chatgpt-hero-empty anim-fade-in">
             {/* 3D Multi-Shell Solar Gyroscopic System with 360° Drag & Touch Control */}
@@ -249,12 +349,12 @@ export default function ChatStudio({
               onTouchStart={handlePointerDown}
               title="Click and drag with mouse or touch to rotate 360° in 3D"
             >
-              {/* Central Volumetric 3D Sphere (Completely Static - Never moves with cursor) */}
+              {/* Central Volumetric 3D Sphere (Static) */}
               <div className="volumetric-3d-sphere">
                 <Brain size={22} className="sphere-brain-hologram" />
               </div>
 
-              {/* Interactive 3D Rotator Wrapper ONLY for Gyroscopic Rings & Planets */}
+              {/* Interactive 3D Rotator Wrapper */}
               <div 
                 className="interactive-3d-rotator"
                 style={{
@@ -262,7 +362,7 @@ export default function ChatStudio({
                 }}
               >
                 <div className="neural-3d-floating-system">
-                  {/* 1. Horizontal Equatorial Ring (0°) */}
+                  {/* 1. Horizontal Equatorial Ring */}
                   <div className="gyro-3d-ring gyro-equatorial">
                     <div className="planet-revolver rev-eq">
                       <div className="orbit-planet">
@@ -273,7 +373,7 @@ export default function ChatStudio({
                     </div>
                   </div>
 
-                  {/* 2. +45° Tilted Ring from Right Side */}
+                  {/* 2. +45° Tilted Ring */}
                   <div className="gyro-3d-ring gyro-tilt-pos">
                     <div className="planet-revolver rev-pos">
                       <div className="orbit-planet">
@@ -284,7 +384,7 @@ export default function ChatStudio({
                     </div>
                   </div>
 
-                  {/* 3. -45° Tilted Ring from Left Side */}
+                  {/* 3. -45° Tilted Ring */}
                   <div className="gyro-3d-ring gyro-tilt-neg">
                     <div className="planet-revolver rev-neg">
                       <div className="orbit-planet">
@@ -295,7 +395,7 @@ export default function ChatStudio({
                     </div>
                   </div>
 
-                  {/* 4. 90° Polar Ring Perpendicular to Equatorial Ring */}
+                  {/* 4. 90° Polar Ring */}
                   <div className="gyro-3d-ring gyro-polar-90">
                     <div className="planet-revolver rev-polar">
                       <div className="orbit-planet">
@@ -308,7 +408,7 @@ export default function ChatStudio({
                 </div>
               </div>
 
-              {/* Realistic Ground Floor Shadow */}
+              {/* Floor Shadow */}
               <div className="neural-3d-floor-shadow"></div>
             </div>
 
@@ -318,15 +418,15 @@ export default function ChatStudio({
             <div className="hero-feature-pills anim-slide-up">
               <div className="hero-pill-badge">
                 <Brain size={13} className="badge-icon" />
-                <span>Neural Semantic Index</span>
+                <span>LangGraph Stateful Multi-Agent</span>
               </div>
               <div className="hero-pill-badge">
                 <Cpu size={13} className="badge-icon" />
-                <span>AI Document Processor</span>
+                <span>Self-Corrective RAG Grader</span>
               </div>
               <div className="hero-pill-badge">
                 <Zap size={13} className="badge-icon" />
-                <span>Real-Time RAG Synthesis</span>
+                <span>Real-Time SSE Streaming</span>
               </div>
             </div>
           </div>
@@ -339,36 +439,46 @@ export default function ChatStudio({
                 </div>
               ) : (
                 <div className="ai-message-card anim-slide-up">
-                  {/* Sources Chips */}
-                  {msg.sources && msg.sources.length > 0 && (
-                    <div className="sources-chip-row">
-                      {msg.sources.map((src, sIdx) => (
-                        <button 
-                          key={sIdx} 
-                          className="source-badge-chip"
-                          onClick={() => setActiveSource(src)}
-                        >
-                          <span className="source-icon">
-                            {src.fileType === 'PDF' ? <FileText size={12} /> : <FileSpreadsheet size={12} />}
-                          </span>
-                          <span className="source-name">{src.fileName}</span>
-                          <span className="source-match">{src.similarity}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
                   {/* Formatted Content */}
                   <div className="ai-markdown-body">
                     <ReactMarkdown>{msg.content}</ReactMarkdown>
                   </div>
+
+                  {/* Structured Citations */}
+                  {msg.sources && msg.sources.length > 0 && (
+                    <div className="sources-container">
+                      <div className="sources-heading">Source References ({msg.sources.length})</div>
+                      <div className="sources-chip-row">
+                        {msg.sources.map((src, sIdx) => (
+                          <button 
+                            key={src.id || sIdx} 
+                            className="source-badge-chip"
+                            onClick={() => setActiveSource(src)}
+                            title="Click to view extracted source passage"
+                          >
+                            <span className="source-icon">
+                              {src.fileType === 'Excel' || src.fileType === 'CSV' ? (
+                                <FileSpreadsheet size={13} />
+                              ) : (
+                                <FileText size={13} />
+                              )}
+                            </span>
+                            <span className="source-name">{src.fileName}</span>
+                            {src.page && <span className="source-sub">• {src.page}</span>}
+                            {src.sheet && <span className="source-sub">• {src.sheet}</span>}
+                            {src.similarity && <span className="source-match">{src.similarity}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Action Icons */}
                   <div className="ai-actions-row">
                     <button 
                       className="action-icon-btn" 
                       onClick={() => copyText(msg.content, msg.id)}
-                      title="Copy"
+                      title="Copy response"
                     >
                       {copiedId === msg.id ? <Check size={14} className="text-accent" /> : <Copy size={14} />}
                     </button>
@@ -381,25 +491,62 @@ export default function ChatStudio({
           ))
         )}
 
-        {/* Real-time Streaming State with Cursor Animation */}
+        {/* Live LangGraph Node Status & Real-time Streaming State */}
         {isStreaming && (
           <div className="chatgpt-msg-row ai anim-slide-up">
             <div className="ai-message-card">
-              <div className="ai-markdown-body">
-                <ReactMarkdown>{streamingText}</ReactMarkdown>
-                <span className="typing-cursor"></span>
-              </div>
+              {/* Dynamic Live LangGraph Pipeline Node Indicator */}
+              {activeNodeStatus && (
+                <div className="langgraph-node-pill anim-fade-in">
+                  <div className="node-spinner-ring"></div>
+                  <span className="node-badge-tag">{activeNodeStatus.node}</span>
+                  <span className="node-status-text">{activeNodeStatus.message}</span>
+                </div>
+              )}
+
+              {/* Streaming Tokens */}
+              {streamingText && (
+                <div className="ai-markdown-body">
+                  <ReactMarkdown>{streamingText}</ReactMarkdown>
+                  <span className="typing-cursor"></span>
+                </div>
+              )}
+
+              {/* Streaming Citations */}
+              {streamingCitations.length > 0 && (
+                <div className="sources-container anim-fade-in">
+                  <div className="sources-heading">Source References ({streamingCitations.length})</div>
+                  <div className="sources-chip-row">
+                    {streamingCitations.map((src, sIdx) => (
+                      <button 
+                        key={src.id || sIdx} 
+                        className="source-badge-chip"
+                        onClick={() => setActiveSource(src)}
+                      >
+                        <span className="source-icon">
+                          {src.fileType === 'Excel' || src.fileType === 'CSV' ? (
+                            <FileSpreadsheet size={13} />
+                          ) : (
+                            <FileText size={13} />
+                          )}
+                        </span>
+                        <span className="source-name">{src.fileName}</span>
+                        {src.page && <span className="source-sub">• {src.page}</span>}
+                        {src.similarity && <span className="source-match">{src.similarity}</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Animated Searching Indicator */}
-        {isSearching && (
-          <div className="chatgpt-msg-row ai anim-fade-in">
-            <div className="chatgpt-thinking-pill anim-pop-in">
-              <span className="thinking-dot-pulse"></span>
-              <span>Searching {docCount} documents & synthesizing...</span>
-            </div>
+        {/* Error Banner */}
+        {errorMessage && (
+          <div className="chat-error-banner anim-slide-up">
+            <AlertCircle size={16} />
+            <span>{errorMessage}</span>
           </div>
         )}
 
@@ -409,7 +556,7 @@ export default function ChatStudio({
       {/* Floating Bottom Console */}
       <div className="chatgpt-input-wrapper">
         {/* Dynamic Suggestion Starter Pills Based on Uploaded Files */}
-        {messages.length === 0 && (
+        {messages.length === 0 && !isStreaming && (
           <div className="prompt-starters-row anim-slide-up">
             {dynamicPromptStarters.map((starter, idx) => (
               <button 
@@ -441,20 +588,21 @@ export default function ChatStudio({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            disabled={isStreaming}
           />
 
           <button 
             type="submit" 
-            className={`send-arrow-circle ${input.trim() ? 'active' : ''}`}
-            disabled={!input.trim() || isSearching || isStreaming}
+            className={`send-arrow-circle ${input.trim() && !isStreaming ? 'active' : ''}`}
+            disabled={!input.trim() || isStreaming}
           >
             <ArrowUp size={16} />
           </button>
         </form>
 
-        {/* ChatGPT Disclaimer */}
+        {/* Disclaimer */}
         <div className="chatgpt-disclaimer">
-          Noesis can make mistakes. Verify important document info.
+          Noesis LangGraph RAG can make mistakes. Verify important citations and document excerpts.
         </div>
       </div>
 
@@ -467,7 +615,9 @@ export default function ChatStudio({
                 <FileCheck size={18} className="text-accent" />
                 <div>
                   <h4>{activeSource.fileName}</h4>
-                  <span className="drawer-loc">{activeSource.page} • {activeSource.similarity}</span>
+                  <span className="drawer-loc">
+                    {activeSource.page || activeSource.sheet || 'Reference Document'} {activeSource.similarity ? `• ${activeSource.similarity}` : ''}
+                  </span>
                 </div>
               </div>
               <button className="drawer-close" onClick={() => setActiveSource(null)}>
@@ -476,8 +626,8 @@ export default function ChatStudio({
             </div>
 
             <div className="drawer-content-box">
-              <div className="drawer-label">EXTRACTED PASSAGE</div>
-              <p className="drawer-passage">{activeSource.text}</p>
+              <div className="drawer-label">EXTRACTED PASSAGE CONTENT</div>
+              <p className="drawer-passage">{activeSource.text || 'No text snippet available for this citation.'}</p>
             </div>
           </div>
         </div>

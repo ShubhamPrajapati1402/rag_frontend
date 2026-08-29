@@ -1,6 +1,6 @@
-﻿import { UserProfile } from '../types';
+import { UserProfile } from '../types';
 
-const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:2001';
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
 export interface AuthResponse {
   message?: string;
