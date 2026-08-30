@@ -239,10 +239,7 @@ export default function Sidebar({
                             onMouseLeave={() => setHoveredSessionId(null)}
                           >
                             <div className="history-item-title-wrapper">
-                              <div className="history-item-marquee-track">
-                                <span className="history-item-title">{session.title}</span>
-                                <span className="history-item-title-duplicate">{session.title}</span>
-                              </div>
+                              <span className="history-item-title">{session.title}</span>
                             </div>
 
                             {(isHovered || isActive) && (

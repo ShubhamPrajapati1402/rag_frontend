@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Header/Navbar';
 import Sidebar from './components/Navigation/Sidebar';
-import ChatStudio from './components/Chat/ChatStudio';
+import ChatStudio, { evictSessionCache } from './components/Chat/ChatStudio';
 import IngestionHub from './components/Ingestion/IngestionHub';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import AuthModal from './components/Auth/AuthModal';
@@ -49,6 +49,15 @@ function App() {
     }
   }, []);
 
+  const loadDocuments = useCallback(async () => {
+    try {
+      const docs = await chatApi.getDocuments();
+      setDocuments(docs);
+    } catch (err) {
+      console.warn('Failed to load documents:', err);
+    }
+  }, []);
+
   // Listen to browser Back / Forward popstate events for /c/:sessionId routing
   useEffect(() => {
     const handlePopState = () => {
@@ -68,6 +77,7 @@ function App() {
           setIsAuthenticated(true);
           setUserProfile(user);
           loadSessions();
+          loadDocuments();
         } else {
           setIsAuthenticated(false);
           setUserProfile(null);
@@ -80,7 +90,13 @@ function App() {
       }
     };
     verifySession();
-  }, [loadSessions]);
+  }, [loadSessions, loadDocuments]);
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'documents') {
+      loadDocuments();
+    }
+  }, [activeTab, isAuthenticated, loadDocuments]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -118,6 +134,7 @@ function App() {
     setUserProfile(user);
     setIsAuthenticated(true);
     loadSessions();
+    loadDocuments();
   };
 
   const handleLogout = async () => {
@@ -126,6 +143,7 @@ function App() {
     } catch (e) {
       console.error(e);
     }
+    evictSessionCache();
     setIsAuthenticated(false);
     setUserProfile(null);
     setChatSessions([]);
@@ -180,6 +198,7 @@ function App() {
     } catch (err) {
       console.error('Error deleting session:', err);
     }
+    evictSessionCache(id);
     setChatSessions(prev => prev.filter(s => s.id !== id));
     if (currentSessionId === id) {
       setCurrentSessionId('');
@@ -242,6 +261,7 @@ function App() {
                 docCount={documents.length}
                 documents={documents}
                 onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+                userProfile={userProfile}
               />
             ) : (
               <IngestionHub 

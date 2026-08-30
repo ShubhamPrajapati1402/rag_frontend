@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   ArrowUp, 
   Copy, 
@@ -12,15 +13,15 @@ import {
   FileCheck,
   Plus,
   Brain,
-  Cpu,
   Zap,
   AlertCircle,
   Sparkles,
   GitFork,
   Database,
-  CheckCheck
+  CheckCheck,
+  HelpCircle
 } from 'lucide-react';
-import { DocumentItem, ChatMessage, SourceCitation } from '../../types';
+import { DocumentItem, ChatMessage, SourceCitation, UserProfile } from '../../types';
 import { chatApi } from '../../services/chatApi';
 import './ChatStudio.css';
 
@@ -54,6 +55,47 @@ interface ChatStudioProps {
   docCount: number;
   documents?: DocumentItem[];
   onOpenCommandPalette: () => void;
+  userProfile?: UserProfile | null;
+}
+
+// Fast in-memory & localStorage session cache (0ms instant route switching, stale-while-revalidate)
+const sessionMemoryCache: Record<string, ChatMessage[]> = {};
+
+export function getCachedSessionMessages(sessionId: string): ChatMessage[] | null {
+  if (!sessionId) return null;
+  if (sessionMemoryCache[sessionId] && sessionMemoryCache[sessionId].length > 0) {
+    return sessionMemoryCache[sessionId];
+  }
+  try {
+    const raw = localStorage.getItem(`noesis_chat_${sessionId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        sessionMemoryCache[sessionId] = parsed;
+        return parsed;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+export function setCachedSessionMessages(sessionId: string, msgs: ChatMessage[]) {
+  if (!sessionId || !Array.isArray(msgs)) return;
+  sessionMemoryCache[sessionId] = msgs;
+  try {
+    localStorage.setItem(`noesis_chat_${sessionId}`, JSON.stringify(msgs));
+  } catch (e) {}
+}
+
+export function evictSessionCache(sessionId?: string) {
+  if (sessionId) {
+    delete sessionMemoryCache[sessionId];
+    try { localStorage.removeItem(`noesis_chat_${sessionId}`); } catch (e) {}
+  } else {
+    for (const key of Object.keys(sessionMemoryCache)) {
+      delete sessionMemoryCache[key];
+    }
+  }
 }
 
 export default function ChatStudio({ 
@@ -64,9 +106,12 @@ export default function ChatStudio({
   onNavigateToIngestion, 
   docCount, 
   documents = [], 
-  onOpenCommandPalette 
+  onOpenCommandPalette,
+  userProfile
 }: ChatStudioProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    return getCachedSessionMessages(currentSessionId) || [];
+  });
   const [input, setInput] = useState<string>('');
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [streamingText, setStreamingText] = useState<string>('');
@@ -93,7 +138,7 @@ export default function ChatStudio({
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingSessionIdRef = useRef<string | null>(null);
 
-  // Load session messages when currentSessionId changes (sidebar click or URL landing)
+  // Load session messages when currentSessionId changes (stale-while-revalidate)
   useEffect(() => {
     // If a stream is active for this session, do not fetch from DB and overwrite live state
     if (streamingSessionIdRef.current && streamingSessionIdRef.current === currentSessionId) {
@@ -110,16 +155,27 @@ export default function ChatStudio({
       return;
     }
 
+    // 1. Instant Cache Render (0ms transition without jarring loading spinner)
+    const cached = getCachedSessionMessages(currentSessionId);
+    if (cached && cached.length > 0) {
+      setMessages(cached);
+      setIsLoadingHistory(false);
+    } else {
+      setMessages([]);
+      setIsLoadingHistory(true);
+    }
+
     let isSubscribed = true;
-    setIsLoadingHistory(true);
     setErrorMessage(null);
 
+    // 2. Background Revalidation from Backend
     chatApi.getSession(currentSessionId)
       .then((data) => {
         if (isSubscribed) {
           if (data && Array.isArray(data.messages)) {
             setMessages(data.messages);
-          } else {
+            setCachedSessionMessages(currentSessionId, data.messages);
+          } else if (!cached) {
             setMessages([]);
           }
         }
@@ -127,7 +183,9 @@ export default function ChatStudio({
       .catch((err) => {
         if (isSubscribed) {
           console.error('Error fetching session history:', err);
-          setErrorMessage('Could not load conversation history.');
+          if (!cached) {
+            setErrorMessage('Could not load conversation history.');
+          }
         }
       })
       .finally(() => {
@@ -195,27 +253,164 @@ export default function ChatStudio({
     };
   }, [isDragging, handlePointerMove]);
 
+  // User time-based greeting
+  const greetingInfo = useMemo(() => {
+    const hour = new Date().getHours();
+    let timeGreeting = "Good morning";
+    if (hour >= 12 && hour < 17) {
+      timeGreeting = "Good afternoon";
+    } else if (hour >= 17 || hour < 4) {
+      timeGreeting = "Good evening";
+    }
+
+    const rawName = userProfile?.name || (userProfile?.email ? userProfile.email.split('@')[0] : '');
+    const firstName = rawName.trim() ? rawName.trim().split(' ')[0] : '';
+    return {
+      timeGreeting,
+      displayName: firstName || 'there',
+    };
+  }, [userProfile]);
+
   // Dynamically compute suggestions directly based on uploaded documents
-  const dynamicPromptStarters = useMemo(() => {
+  interface SuggestionCard {
+    icon: React.ReactNode;
+    badgeColor: string;
+    title: string;
+    subtitle: string;
+    query: string;
+  }
+
+  const dynamicSuggestionCards: SuggestionCard[] = useMemo(() => {
     if (!documents || documents.length === 0) {
       return [
-        "Attach a PDF or spreadsheet to start analyzing",
-        "Upload financial records to calculate margins",
-        "How does Noesis extract structured tables?"
+        {
+          icon: <FileText size={15} className="badge-icon-rose" />,
+          badgeColor: "rose",
+          title: "Upload & Ingest",
+          subtitle: "Attach PDFs, spreadsheets, or docs to query",
+          query: "What types of documents can I upload and analyze in Noesis?"
+        },
+        {
+          icon: <FileSpreadsheet size={15} className="badge-icon-emerald" />,
+          badgeColor: "emerald",
+          title: "Analyze Tables",
+          subtitle: "Extract structured tables and tabular figures",
+          query: "How do you extract and reason over structured tables in documents?"
+        },
+        {
+          icon: <Sparkles size={15} className="badge-icon-amber" />,
+          badgeColor: "amber",
+          title: "Grounded Synthesis",
+          subtitle: "Synthesize insights with verifiable source citations",
+          query: "How do source citations and grounded verification work in this assistant?"
+        },
+        {
+          icon: <Brain size={15} className="badge-icon-indigo" />,
+          badgeColor: "indigo",
+          title: "pgvector Search",
+          subtitle: "Learn how neural retrieval and reranking works",
+          query: "How does the pgvector neural retrieval pipeline work in Noesis?"
+        }
       ];
     }
-    return documents.slice(0, 3).map((doc) => {
+
+    const cards: SuggestionCard[] = [];
+
+    documents.slice(0, 4).forEach((doc, idx) => {
       const isPdf = doc.format === 'PDF' || doc.name.toLowerCase().endsWith('.pdf');
       const isSheet = doc.format === 'Excel' || doc.format === 'CSV' || doc.name.toLowerCase().endsWith('.xlsx') || doc.name.toLowerCase().endsWith('.csv');
-      
+      const cleanName = doc.name.replace(/\.[^/.]+$/, "");
+
       if (isPdf) {
-        return `Summarize key findings in ${doc.name}`;
+        if (idx % 2 === 0) {
+          cards.push({
+            icon: <FileText size={15} className="badge-icon-rose" />,
+            badgeColor: "rose",
+            title: `Summarize ${cleanName}`,
+            subtitle: "Executive overview & main conclusions",
+            query: `Provide an executive summary and key findings of ${doc.name}`
+          });
+        } else {
+          cards.push({
+            icon: <Sparkles size={15} className="badge-icon-amber" />,
+            badgeColor: "amber",
+            title: `Key Facts in ${cleanName}`,
+            subtitle: "Extract core metrics, figures & takeaways",
+            query: `What are the most important facts, metrics, and figures mentioned in ${doc.name}?`
+          });
+        }
+      } else if (isSheet) {
+        cards.push({
+          icon: <FileSpreadsheet size={15} className="badge-icon-emerald" />,
+          badgeColor: "emerald",
+          title: `Analyze ${cleanName}`,
+          subtitle: "Calculate trends, rows & tabular figures",
+          query: `Analyze and extract the key data points and tabular numbers from ${doc.name}`
+        });
+      } else {
+        cards.push({
+          icon: <FileCheck size={15} className="badge-icon-cyan" />,
+          badgeColor: "cyan",
+          title: `Explore ${cleanName}`,
+          subtitle: "Synthesize topics and sections",
+          query: `Explain the core concepts and topics discussed in ${doc.name}`
+        });
       }
-      if (isSheet) {
-        return `Extract compute numbers from ${doc.name}`;
-      }
-      return `Explain core sections of ${doc.name}`;
     });
+
+    if (documents.length > 1 && cards.length < 4) {
+      cards.push({
+        icon: <GitFork size={15} className="badge-icon-indigo" />,
+        badgeColor: "indigo",
+        title: "Cross-Document Insights",
+        subtitle: `Compare themes across all ${documents.length} files`,
+        query: "Compare and synthesize the main themes across all my uploaded documents"
+      });
+    }
+
+    // Always ensure exactly 4 cards for a balanced 2x2 grid
+    if (cards.length === 3 && documents.length >= 1) {
+      const primaryDoc = documents[0];
+      cards.push({
+        icon: <HelpCircle size={15} className="badge-icon-cyan" />,
+        badgeColor: "cyan",
+        title: `Q&A on ${primaryDoc.name.replace(/\.[^/.]+$/, "")}`,
+        subtitle: "Ask targeted questions on this document",
+        query: `What are the most notable findings and critical points from ${primaryDoc.name}?`
+      });
+    }
+
+    const fallbacks: SuggestionCard[] = [
+      {
+        icon: <Brain size={15} className="badge-icon-indigo" />,
+        badgeColor: "indigo",
+        title: "Semantic Analysis",
+        subtitle: "Synthesize insights across all indexed passages",
+        query: "Provide a comprehensive summary of all uploaded documents."
+      },
+      {
+        icon: <FileSpreadsheet size={15} className="badge-icon-emerald" />,
+        badgeColor: "emerald",
+        title: "Tabular Metrics",
+        subtitle: "Extract figures, statistics & tabular data",
+        query: "Extract and list all quantitative figures and tables found in the documents."
+      },
+      {
+        icon: <Sparkles size={15} className="badge-icon-amber" />,
+        badgeColor: "amber",
+        title: "Key Highlights",
+        subtitle: "Discover high-priority facts & findings",
+        query: "What are the most essential takeaways from my knowledge base?"
+      }
+    ];
+
+    let fbIdx = 0;
+    while (cards.length < 4 && fbIdx < fallbacks.length) {
+      cards.push(fallbacks[fbIdx]);
+      fbIdx++;
+    }
+
+    return cards.slice(0, 4);
   }, [documents]);
 
   const getNodeDisplay = (nodeName: string): { label: string; icon: React.ReactNode } => {
@@ -316,7 +511,7 @@ export default function ChatStudio({
         }
       });
 
-      // Stream completed successfully, save final AI message into state
+      // Stream completed successfully, save final AI message into state and update session cache
       if (accumulatedText.trim()) {
         const aiMsg: ChatMessage = {
           id: `ai-${Date.now()}`,
@@ -325,7 +520,13 @@ export default function ChatStudio({
           sources: accumulatedCitations.length > 0 ? accumulatedCitations : undefined,
           createdAt: new Date().toISOString()
         };
-        setMessages(prev => [...prev, aiMsg]);
+        setMessages(prev => {
+          const nextMsgs = [...prev, aiMsg];
+          if (activeSession) {
+            setCachedSessionMessages(activeSession, nextMsgs);
+          }
+          return nextMsgs;
+        });
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
@@ -457,22 +658,30 @@ export default function ChatStudio({
               <div className="neural-3d-floor-shadow"></div>
             </div>
 
-            <h1 className="chatgpt-hero-prompt anim-slide-up">What can I help with?</h1>
+            <div className="hero-greeting-container anim-slide-up">
+              <h1 className="chatgpt-hero-prompt">What can I help with?</h1>
+              <span className="hero-salutation-text">
+                {greetingInfo.timeGreeting}, {greetingInfo.displayName} • Select a prompt below or ask anything
+              </span>
+            </div>
 
-            {/* AI Architecture Badges */}
-            <div className="hero-feature-pills anim-slide-up">
-              <div className="hero-pill-badge">
-                <Brain size={13} className="badge-icon" />
-                <span>LangGraph Stateful Multi-Agent</span>
-              </div>
-              <div className="hero-pill-badge">
-                <Cpu size={13} className="badge-icon" />
-                <span>Self-Corrective RAG Grader</span>
-              </div>
-              <div className="hero-pill-badge">
-                <Zap size={13} className="badge-icon" />
-                <span>Real-Time SSE Streaming</span>
-              </div>
+            {/* Dynamic Suggestion Cards Grid (Always 2x2 Complete) */}
+            <div className="hero-suggestions-grid anim-slide-up">
+              {dynamicSuggestionCards.map((card, idx) => (
+                <button 
+                  key={idx} 
+                  className="suggestion-tile-card"
+                  onClick={() => handleSend(null, card.query)}
+                >
+                  <div className={`tile-icon-box badge-${card.badgeColor}`}>
+                    {card.icon}
+                  </div>
+                  <div className="tile-text-box">
+                    <span className="tile-title">{card.title}</span>
+                    <span className="tile-subtitle">{card.subtitle}</span>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         ) : (
@@ -498,7 +707,9 @@ export default function ChatStudio({
                 <div className="ai-message-card anim-slide-up">
                   {/* Formatted Content */}
                   <div className="ai-markdown-body">
-                    <ReactMarkdown>{msg.content ? msg.content.replace(/\|\|\s*\|?/g, '|\n| ') : ''}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content ? msg.content.replace(/\|\|\s*\|?/g, '|\n| ') : ''}
+                    </ReactMarkdown>
                   </div>
 
                   {/* Structured Citations */}
@@ -565,7 +776,9 @@ export default function ChatStudio({
               {/* Streaming Tokens */}
               {streamingText && (
                 <div className="ai-markdown-body">
-                  <ReactMarkdown>{streamingText}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {streamingText ? streamingText.replace(/\|\|\s*\|?/g, '|\n| ') : ''}
+                  </ReactMarkdown>
                   <span className="typing-cursor"></span>
                 </div>
               )}
@@ -614,21 +827,6 @@ export default function ChatStudio({
 
       {/* Floating Bottom Console */}
       <div className="chatgpt-input-wrapper">
-        {/* Dynamic Suggestion Starter Pills Based on Uploaded Files */}
-        {messages.length === 0 && !isStreaming && !isLoadingHistory && (
-          <div className="prompt-starters-row anim-slide-up">
-            {dynamicPromptStarters.map((starter, idx) => (
-              <button 
-                key={idx} 
-                className="starter-pill-btn"
-                onClick={() => handleSend(null, starter)}
-              >
-                <span>{starter}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* ChatGPT Input Bar */}
         <form className="chatgpt-input-bar anim-slide-up" onSubmit={(e) => handleSend(e)}>
           <button 

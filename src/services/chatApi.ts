@@ -1,4 +1,4 @@
-import { ChatMessage, ChatSession, SourceCitation } from '../types';
+import { ChatMessage, ChatSession, SourceCitation, DocumentItem } from '../types';
 
 export const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -75,6 +75,13 @@ export interface StreamChatOptions {
   onDone?: (data?: { session_id?: string; title?: string }) => void;
   onError?: (err: Error) => void;
   signal?: AbortSignal;
+}
+
+export interface UploadStreamOptions {
+  file: File;
+  onProgress?: (progress: { percent: number; stage: string; message: string }) => void;
+  onDone?: (data: any) => void;
+  onError?: (err: Error) => void;
 }
 
 export const chatApi = {
@@ -433,6 +440,165 @@ export const chatApi = {
       return res.ok;
     } catch (err) {
       console.warn(`Failed to delete session ${sessionId}:`, err);
+      return false;
+    }
+  },
+
+  // 5. Ingest / Upload document with real-time SSE progress
+  streamUpload: async ({ file, onProgress, onDone, onError }: UploadStreamOptions): Promise<void> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${BACKEND_BASE_URL}/api/v1/ingest/stream`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      if (!response.ok) {
+        let errMessage = `Upload failed (${response.status})`;
+        try {
+          const errData = await response.json();
+          errMessage = errData.detail || errData.message || errMessage;
+        } catch {}
+        throw new Error(errMessage);
+      }
+
+      if (!response.body) {
+        throw new Error('ReadableStream not supported by response');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const blocks = buffer.split(/\r?\n\r?\n/);
+        buffer = blocks.pop() || '';
+
+        for (const block of blocks) {
+          if (!block.trim()) continue;
+
+          let eventName = 'message';
+          const dataLines: string[] = [];
+          const lines = block.split(/\r?\n/);
+
+          for (const line of lines) {
+            if (line.startsWith('event:')) {
+              eventName = line.replace(/^event:\s*/, '').trim();
+            } else if (line.startsWith('data:')) {
+              dataLines.push(line.replace(/^data:\s*/, ''));
+            }
+          }
+
+          const rawData = dataLines.join('\n');
+          let parsedData: any = rawData;
+          try {
+            parsedData = JSON.parse(rawData);
+          } catch {}
+
+          if (eventName === 'progress' && onProgress) {
+            onProgress({
+              percent: Number(parsedData.percent || 0),
+              stage: String(parsedData.stage || 'processing'),
+              message: String(parsedData.message || '')
+            });
+          } else if (eventName === 'done' && onDone) {
+            onDone(parsedData);
+          } else if (eventName === 'error' && onError) {
+            onError(new Error(parsedData?.message || parsedData?.detail || 'Ingestion failed'));
+          }
+        }
+      }
+    } catch (err: any) {
+      if (onError) onError(err);
+      else throw err;
+    }
+  },
+
+  // 6. Get list of ingested documents
+  getDocuments: async (): Promise<DocumentItem[]> => {
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/ingest/documents`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include'
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const rawList = Array.isArray(data) ? data : (data?.documents || data?.data || data?.items || []);
+      return Array.isArray(rawList) ? rawList.map((d: any) => {
+        let fmt = d.format || d.file_type || d.fileType;
+        if (!fmt && d.filename) {
+          const ext = d.filename.split('.').pop()?.toUpperCase();
+          fmt = ext || 'TXT';
+        }
+        return {
+          id: String(d.id || d.doc_id || ''),
+          name: String(d.filename || d.name || d.file_name || 'Document'),
+          format: String(fmt || 'TXT'),
+          size: String(d.size || (d.chunk_count ? `${d.chunk_count} chunks` : '')),
+          status: (d.status === 'ready' || d.status === 'processing' || d.status === 'error' || d.status === 'COMPLETED') 
+            ? (d.status === 'COMPLETED' ? 'ready' : d.status) 
+            : 'ready',
+          date: d.created_at ? new Date(d.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) + ' IST' : 'Just now',
+          summary: String(d.summary || d.description || ''),
+          previewText: String(d.extracted_preview || d.previewText || d.preview_text || d.preview || d.content || d.text || '')
+        };
+      }) : [];
+    } catch (err) {
+      console.warn('Failed to load documents:', err);
+      return [];
+    }
+  },
+
+  // 7. Get full document content preview
+  getDocumentPreview: async (documentId: string | number): Promise<DocumentItem | null> => {
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/ingest/documents/${documentId}/preview`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include'
+      });
+      if (!res.ok) return null;
+      const d = await res.json();
+      let fmt = d.format || d.file_type;
+      if (!fmt && d.filename) {
+        const ext = d.filename.split('.').pop()?.toUpperCase();
+        fmt = ext || 'TXT';
+      }
+      return {
+        id: String(d.id),
+        name: d.filename || 'Document',
+        format: String(fmt || 'TXT'),
+        size: d.size || '',
+        status: (d.status === 'COMPLETED' || d.status === 'ready') ? 'ready' : (d.status || 'ready'),
+        date: d.created_at ? new Date(d.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) + ' IST' : 'Just now',
+        summary: d.summary || '',
+        previewText: d.extracted_preview || d.previewText || d.preview || ''
+      };
+    } catch (err) {
+      console.warn(`Failed to fetch preview for doc ${documentId}:`, err);
+      return null;
+    }
+  },
+
+  // 8. Delete an ingested document
+  deleteDocument: async (docId: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/ingest/documents/${docId}`, {
+        method: 'DELETE',
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include'
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn(`Failed to delete document ${docId}:`, err);
       return false;
     }
   }
