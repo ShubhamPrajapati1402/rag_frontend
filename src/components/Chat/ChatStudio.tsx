@@ -19,7 +19,8 @@ import {
   GitFork,
   Database,
   CheckCheck,
-  HelpCircle
+  HelpCircle,
+  ExternalLink
 } from 'lucide-react';
 import { DocumentItem, ChatMessage, SourceCitation, UserProfile } from '../../types';
 import { chatApi } from '../../services/chatApi';
@@ -45,6 +46,45 @@ export function formatISTDateTime(dateInput?: string | number | Date): string {
   const formatted = new Intl.DateTimeFormat('en-IN', options).format(d);
   return `${formatted} IST`;
 }
+
+// Auto-converts table pipes and bare URLs (e.g. www.linkedin.com/...) into markdown links
+export function formatMarkdownContent(rawText: string): string {
+  if (!rawText) return '';
+  let text = rawText.replace(/\|\|\s*\|?/g, '|\n| ');
+
+  // Auto-convert plain naked URLs into clickable markdown links if not already wrapped
+  const urlRegex = /(?<!\]\(|<a[^>]*href=["'])(https?:\/\/[^\s<)]+|www\.[^\s<)]+)/gi;
+  text = text.replace(urlRegex, (url) => {
+    const cleanUrl = url.replace(/[.,;!?]+$/, '');
+    const trailing = url.slice(cleanUrl.length);
+    const href = cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`;
+    return `[${cleanUrl}](${href})${trailing}`;
+  });
+
+  return text;
+}
+
+// Custom Markdown Components for highlighted external links opening in a new tab
+const markdownComponents = {
+  a: ({ node, href, children, ...props }: any) => {
+    let validHref = href || '';
+    if (validHref && !validHref.startsWith('http://') && !validHref.startsWith('https://') && !validHref.startsWith('mailto:')) {
+      validHref = `https://${validHref}`;
+    }
+    return (
+      <a
+        href={validHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="chat-link-highlight"
+        {...props}
+      >
+        <span>{children}</span>
+        <ExternalLink size={11} className="link-ext-icon" />
+      </a>
+    );
+  }
+};
 
 interface ChatStudioProps {
   currentSessionId: string;
@@ -707,37 +747,30 @@ export default function ChatStudio({
                 <div className="ai-message-card anim-slide-up">
                   {/* Formatted Content */}
                   <div className="ai-markdown-body">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.content ? msg.content.replace(/\|\|\s*\|?/g, '|\n| ') : ''}
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={markdownComponents}
+                    >
+                      {formatMarkdownContent(msg.content)}
                     </ReactMarkdown>
                   </div>
 
-                  {/* Structured Citations */}
+                  {/* Sleek Numbered Citation Pills */}
                   {msg.sources && msg.sources.length > 0 && (
                     <div className="sources-container">
-                      <div className="sources-heading">Source References ({msg.sources.length})</div>
-                      <div className="sources-chip-row">
-                        {msg.sources.map((src, sIdx) => (
-                          <button 
-                            key={src.id || sIdx} 
-                            className="source-badge-chip"
-                            onClick={() => setActiveSource(src)}
-                            title="Click to view extracted source passage"
-                          >
-                            <span className="source-icon">
-                              {src.fileType === 'Excel' || src.fileType === 'CSV' ? (
-                                <FileSpreadsheet size={13} />
-                              ) : (
-                                <FileText size={13} />
-                              )}
-                            </span>
-                            <span className="source-name">{src.fileName}</span>
-                            {src.page && <span className="source-sub">• {src.page}</span>}
-                            {src.sheet && <span className="source-sub">• {src.sheet}</span>}
-                            {src.similarity && <span className="source-match">{src.similarity}</span>}
-                          </button>
-                        ))}
-                      </div>
+                      {msg.sources.map((src, sIdx) => (
+                        <button 
+                          key={src.id || sIdx} 
+                          className="perplexity-source-pill"
+                          onClick={() => setActiveSource(src)}
+                          title={`View passage from ${src.fileName}`}
+                        >
+                          <span className="source-num-badge">{sIdx + 1}</span>
+                          <FileText size={11} className="source-file-icon" />
+                          <span className="source-name-text">{src.fileName}</span>
+                          {src.page && <span className="source-page-text">• {src.page}</span>}
+                        </button>
+                      ))}
                     </div>
                   )}
 
@@ -776,8 +809,11 @@ export default function ChatStudio({
               {/* Streaming Tokens */}
               {streamingText && (
                 <div className="ai-markdown-body">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {streamingText ? streamingText.replace(/\|\|\s*\|?/g, '|\n| ') : ''}
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {formatMarkdownContent(streamingText)}
                   </ReactMarkdown>
                   <span className="typing-cursor"></span>
                 </div>
@@ -786,27 +822,19 @@ export default function ChatStudio({
               {/* Streaming Citations */}
               {streamingCitations.length > 0 && (
                 <div className="sources-container anim-fade-in">
-                  <div className="sources-heading">Source References ({streamingCitations.length})</div>
-                  <div className="sources-chip-row">
-                    {streamingCitations.map((src, sIdx) => (
-                      <button 
-                        key={src.id || sIdx} 
-                        className="source-badge-chip"
-                        onClick={() => setActiveSource(src)}
-                      >
-                        <span className="source-icon">
-                          {src.fileType === 'Excel' || src.fileType === 'CSV' ? (
-                            <FileSpreadsheet size={13} />
-                          ) : (
-                            <FileText size={13} />
-                          )}
-                        </span>
-                        <span className="source-name">{src.fileName}</span>
-                        {src.page && <span className="source-sub">• {src.page}</span>}
-                        {src.similarity && <span className="source-match">{src.similarity}</span>}
-                      </button>
-                    ))}
-                  </div>
+                  {streamingCitations.map((src, sIdx) => (
+                    <button 
+                      key={src.id || sIdx} 
+                      className="perplexity-source-pill"
+                      onClick={() => setActiveSource(src)}
+                      title={`View passage from ${src.fileName}`}
+                    >
+                      <span className="source-num-badge">{sIdx + 1}</span>
+                      <FileText size={11} className="source-file-icon" />
+                      <span className="source-name-text">{src.fileName}</span>
+                      {src.page && <span className="source-page-text">• {src.page}</span>}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
