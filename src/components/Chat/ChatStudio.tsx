@@ -47,28 +47,24 @@ export function formatISTDateTime(dateInput?: string | number | Date): string {
   return `${formatted} IST`;
 }
 
-// Auto-converts table pipes and bare URLs (e.g. www.linkedin.com/...) into markdown links
+// Normalizes markdown formatting (e.g. table pipes)
 export function formatMarkdownContent(rawText: string): string {
   if (!rawText) return '';
-  let text = rawText.replace(/\|\|\s*\|?/g, '|\n| ');
-
-  // Auto-convert plain naked URLs into clickable markdown links if not already wrapped
-  const urlRegex = /(?<!\]\(|<a[^>]*href=["'])(https?:\/\/[^\s<)]+|www\.[^\s<)]+)/gi;
-  text = text.replace(urlRegex, (url) => {
-    const cleanUrl = url.replace(/[.,;!?]+$/, '');
-    const trailing = url.slice(cleanUrl.length);
-    const href = cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`;
-    return `[${cleanUrl}](${href})${trailing}`;
-  });
-
-  return text;
+  return rawText.replace(/\|\|\s*\|?/g, '|\n| ');
 }
 
-// Custom Markdown Components for highlighted external links opening in a new tab
+// Custom Markdown Components for external links opening in a new tab
 const markdownComponents = {
-  a: ({ node, href, children, ...props }: any) => {
+  a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
     let validHref = href || '';
-    if (validHref && !validHref.startsWith('http://') && !validHref.startsWith('https://') && !validHref.startsWith('mailto:')) {
+    if (
+      validHref &&
+      !validHref.startsWith('http://') &&
+      !validHref.startsWith('https://') &&
+      !validHref.startsWith('mailto:') &&
+      !validHref.startsWith('tel:') &&
+      !validHref.startsWith('#')
+    ) {
       validHref = `https://${validHref}`;
     }
     return (
@@ -79,7 +75,7 @@ const markdownComponents = {
         className="chat-link-highlight"
         {...props}
       >
-        <span>{children}</span>
+        {children}
         <ExternalLink size={11} className="link-ext-icon" />
       </a>
     );
@@ -797,12 +793,31 @@ export default function ChatStudio({
         {isStreaming && (
           <div className="chatgpt-msg-row ai anim-slide-up">
             <div className="ai-message-card">
-              {/* Dynamic Live LangGraph Pipeline Node Indicator */}
+              {/* Dynamic Live LangGraph Neural Pipeline Reasoning Beam */}
               {activeNodeStatus && (
-                <div className="langgraph-node-pill anim-fade-in">
-                  <div className="node-spinner-ring"></div>
-                  <span className="node-badge-tag">{activeNodeStatus.node}</span>
-                  <span className="node-status-text">{activeNodeStatus.message}</span>
+                <div className="neural-reasoning-beam anim-slide-up">
+                  <div className="neural-beam-orb">
+                    <div className="orb-pulse-ring"></div>
+                    <div className="orb-inner-core"></div>
+                  </div>
+                  
+                  <div className="neural-wave-bars">
+                    <span className="wave-bar bar-1"></span>
+                    <span className="wave-bar bar-2"></span>
+                    <span className="wave-bar bar-3"></span>
+                    <span className="wave-bar bar-4"></span>
+                  </div>
+
+                  <div className="reasoning-node-tag">
+                    <span className="reasoning-node-icon">
+                      {getNodeDisplay(activeNodeStatus.node).icon}
+                    </span>
+                    <span className="reasoning-node-name">{activeNodeStatus.node}</span>
+                  </div>
+
+                  <span className="reasoning-shimmer-text">
+                    {activeNodeStatus.message}
+                  </span>
                 </div>
               )}
 
