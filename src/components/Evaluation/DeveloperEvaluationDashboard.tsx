@@ -28,7 +28,6 @@ import {
 import { evaluationService } from '../../services/evaluationService';
 import { EvaluationRun, EvaluationCase, UserProfile } from '../../types';
 import { useDeveloperTeamSocket, DeveloperMember } from '../../hooks/useDeveloperTeamSocket';
-import AcceptInviteModal from './AcceptInviteModal';
 import './DeveloperEvaluationDashboard.css';
 
 interface DeveloperEvaluationDashboardProps {
@@ -766,7 +765,10 @@ export default function DeveloperEvaluationDashboard({
 
             {/* Invite Form */}
             <form onSubmit={handleGrantAccess} className="team-invite-form">
-              <div className="team-email-input-wrapper" data-tooltip="Please enter developer email address">
+              <div 
+                className="team-email-input-wrapper" 
+                data-tooltip={!inviteEmail.trim() ? "Please enter developer email address" : undefined}
+              >
                 <input
                   type="email"
                   placeholder="Enter teammate email (e.g. teammate@example.com)"
@@ -947,8 +949,6 @@ export default function DeveloperEvaluationDashboard({
           </div>
         </div>
       )}
-      {/* Accept Invite Token Gateway */}
-      <AcceptInviteModal onInviteAccepted={() => fetchRuns(false)} />
     </div>
   );
 }

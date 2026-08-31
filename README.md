@@ -25,7 +25,7 @@ An enterprise-grade, high-performance RAG (Retrieval-Augmented Generation) front
   - **Context Recall**: Retrieval coverage against ground-truth information.
   - **Semantic Similarity & Latency Tracking**: Benchmark execution time and embedding cosine distance.
 - **Granular Test Case Inspection**: Claim-by-claim context entailment audits with interactive search and per-document filtering.
-- **Real-Time Developer Team & Permissions**: Invite teammates with `Member` or `Admin` privileges, featuring live WebSocket sync (`useDeveloperTeamSocket`) and presence indicators.
+- **Real-Time Developer Team & Permissions**: Invite teammates with `Member` or `Admin` privileges, featuring live WebSocket sync (`useDeveloperTeamSocket`), presence indicators, and smart helper tooltips that automatically dismiss once typing begins.
 - **Historical Benchmark Runs**: Persistent run comparison with one-click deletion and inline tooltip actions.
 
 ### 💬 3. Persistent Session Management

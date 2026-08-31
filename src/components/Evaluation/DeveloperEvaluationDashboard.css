@@ -1154,9 +1154,16 @@
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.team-email-input-wrapper[data-tooltip]:hover::after {
+.team-email-input-wrapper[data-tooltip]:not(:focus-within):hover::after {
   opacity: 1;
   transform: translateY(0);
+}
+
+.team-email-input-wrapper:focus-within::after,
+.team-email-input-wrapper:has(.team-email-input:not(:placeholder-shown))::after {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .invite-role-select-menu {
@@ -2119,4 +2126,47 @@
   font-size: 0.82rem;
   color: var(--text-muted, #a3a3a3);
   margin: 0;
+}
+
+.invite-recipient-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  margin-bottom: 6px;
+}
+
+.invite-expiry-note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: #f59e0b;
+  margin-bottom: 14px;
+}
+
+.email-mismatch-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  margin-bottom: 14px;
+}
+
+.email-mismatch-warning code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: #ffffff;
 }

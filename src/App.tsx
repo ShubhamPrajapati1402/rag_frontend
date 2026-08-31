@@ -5,6 +5,7 @@ import ChatStudio, { evictSessionCache } from './components/Chat/ChatStudio';
 import IngestionHub from './components/Ingestion/IngestionHub';
 import DeveloperEvaluationDashboard from './components/Evaluation/DeveloperEvaluationDashboard';
 import AuthModal from './components/Auth/AuthModal';
+import AcceptInviteModal from './components/Evaluation/AcceptInviteModal';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import { chatApi } from './services/chatApi';
 import { authApi } from './services/authApi';
@@ -88,6 +89,19 @@ function App() {
 
   useEffect(() => {
     const verifySession = async () => {
+      // Scale Optimization: Check non-HttpOnly companion cookie 'rag_logged_in=1'
+      // Guest visitors will have no cookie, skipping /auth/me network calls entirely (0 server load)
+      const hasSessionCookie = document.cookie
+        .split('; ')
+        .some(cookie => cookie.startsWith('rag_logged_in=1'));
+
+      if (!hasSessionCookie) {
+        setIsAuthenticated(false);
+        setUserProfile(null);
+        setIsAuthChecking(false);
+        return;
+      }
+
       try {
         const user = await authApi.getMe();
         if (user) {
@@ -254,6 +268,23 @@ function App() {
       {!isAuthenticated && (
         <AuthModal onLogin={handleLogin} />
       )}
+
+      {/* Developer Team Invite Acceptance Gateway */}
+      <AcceptInviteModal
+        userProfile={userProfile}
+        onInviteAccepted={async () => {
+          try {
+            const updated = await authApi.getMe();
+            if (updated) {
+              setUserProfile(updated);
+            }
+          } catch (e) {
+            console.error(e);
+          }
+          setActiveTab('evaluation');
+          window.history.pushState(null, '', '/developer/evaluation');
+        }}
+      />
 
       <div className={`app-workspace-container ${!isAuthenticated ? 'workspace-inert' : ''}`}>
         <Sidebar 

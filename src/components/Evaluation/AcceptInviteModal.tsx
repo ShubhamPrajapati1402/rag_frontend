@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, CheckCircle2, AlertCircle, X, Sparkles, ArrowRight } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, AlertCircle, X, Sparkles, ArrowRight, Lock, Clock } from 'lucide-react';
 import { UserProfile } from '../../types';
+import './DeveloperEvaluationDashboard.css';
 
 interface AcceptInviteModalProps {
   userProfile?: UserProfile | null;
@@ -47,7 +48,7 @@ export default function AcceptInviteModal({
       if (res.ok) {
         setInviteDetails(data);
       } else {
-        setError(data.detail || 'This invitation link is invalid or has expired.');
+        setError(data.detail || 'This invitation link is invalid, expired, or has already been accepted.');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to verify invitation token.');
@@ -74,6 +75,7 @@ export default function AcceptInviteModal({
         window.history.replaceState({}, document.title, window.location.pathname);
         setTimeout(() => {
           if (onInviteAccepted) onInviteAccepted();
+          setToken(null);
         }, 1500);
       } else {
         setError(data.detail || 'Failed to accept invitation.');
@@ -85,16 +87,23 @@ export default function AcceptInviteModal({
     }
   };
 
+  const handleClose = () => {
+    setToken(null);
+    window.history.replaceState({}, document.title, window.location.pathname);
+    if (onClose) onClose();
+  };
+
   if (!token) return null;
+
+  const isEmailMismatch = userProfile?.email && inviteDetails?.email &&
+    userProfile.email.toLowerCase() !== inviteDetails.email.toLowerCase();
 
   return (
     <div className="accept-invite-backdrop anim-fade-in">
       <div className="accept-invite-card anim-slide-up">
-        {onClose && (
-          <button className="accept-close-btn" onClick={onClose}>
-            <X size={18} />
-          </button>
-        )}
+        <button className="accept-close-btn" onClick={handleClose} aria-label="Close">
+          <X size={18} />
+        </button>
 
         <div className="accept-header">
           <div className="accept-badge-icon">
@@ -132,12 +141,32 @@ export default function AcceptInviteModal({
             <div className="accept-details-content">
               <div className="invite-meta-banner">
                 <div className="role-chip">
-                  Role: <strong>{inviteDetails.role === 'ADMIN' ? '🛡️ Admin' : '💻 Member'}</strong>
+                  Role: <strong>{inviteDetails.role === 'ADMIN' ? '🛡️ Admin' : '👤 Member'}</strong>
                 </div>
                 <div className="inviter-note">
                   Invited by: <strong>{inviteDetails.invited_by_email}</strong>
                 </div>
               </div>
+
+              <div className="invite-recipient-pill">
+                <Lock size={13} className="lock-icon" />
+                <span>Exclusively for: <strong>{inviteDetails.email}</strong></span>
+              </div>
+
+              <div className="invite-expiry-note">
+                <Clock size={12} className="clock-icon" />
+                <span>Expires in 48 hours from dispatch</span>
+              </div>
+
+              {isEmailMismatch && (
+                <div className="email-mismatch-warning anim-shake">
+                  <AlertCircle size={16} className="mismatch-icon" />
+                  <div>
+                    <strong>Recipient Mismatch:</strong> Signed in as <code>{userProfile?.email}</code>. 
+                    Please sign in with <code>{inviteDetails.email}</code> to accept.
+                  </div>
+                </div>
+              )}
 
               <div className="invite-perks-list">
                 <div className="perk-item">
@@ -153,10 +182,12 @@ export default function AcceptInviteModal({
               <button
                 className="accept-submit-btn"
                 onClick={handleAccept}
-                disabled={accepting}
+                disabled={accepting || Boolean(isEmailMismatch)}
               >
                 {accepting ? (
                   <span>Activating Privileges...</span>
+                ) : isEmailMismatch ? (
+                  <span>Sign in as {inviteDetails.email}</span>
                 ) : (
                   <>
                     <span>Accept & Join Team</span>
