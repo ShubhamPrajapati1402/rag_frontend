@@ -11,11 +11,12 @@ import {
   HelpCircle, 
   Sun, 
   Moon, 
-  X,
-  Keyboard,
-  Check,
-  ChevronsUpDown,
-  ShieldCheck
+  X, 
+  Keyboard, 
+  Check, 
+  ChevronsUpDown, 
+  ShieldCheck,
+  Brain
 } from 'lucide-react';
 import { ChatSession, ThemeType, UserProfile } from '../../types';
 import './Sidebar.css';
@@ -141,7 +142,24 @@ export default function Sidebar({
           <>
             {/* Top Header Row */}
             <div className="sidebar-brand-header">
-              <div className="sidebar-brand-left">
+              <div className="sidebar-brand-left" onClick={onNewSession} role="button" title="Noesis AI">
+                <div className="sidebar-neural-emblem" aria-hidden="true">
+                  <div className="sidebar-neural-sphere">
+                    <Brain size={10} className="sidebar-neural-brain" />
+                  </div>
+                  <div className="sidebar-gyro-ring gyro-eq">
+                    <div className="planet-revolver rev-eq"><div className="orbit-planet" /></div>
+                  </div>
+                  <div className="sidebar-gyro-ring gyro-pos">
+                    <div className="planet-revolver rev-pos"><div className="orbit-planet" /></div>
+                  </div>
+                  <div className="sidebar-gyro-ring gyro-neg">
+                    <div className="planet-revolver rev-neg"><div className="orbit-planet" /></div>
+                  </div>
+                  <div className="sidebar-gyro-ring gyro-polar">
+                    <div className="planet-revolver rev-polar"><div className="orbit-planet" /></div>
+                  </div>
+                </div>
                 <span className="sidebar-brand-title">Noesis<span className="brand-reg">®</span></span>
               </div>
               <div className="brand-header-actions">
