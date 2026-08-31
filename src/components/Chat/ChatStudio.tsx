@@ -629,7 +629,7 @@ export default function ChatStudio({
               className={`neural-3d-scene ${isDragging ? 'is-dragging' : ''}`}
               onMouseDown={handlePointerDown}
               onTouchStart={handlePointerDown}
-              title="Click and drag with mouse or touch to rotate 360° in 3D"
+              data-tooltip="Click and drag with mouse or touch to rotate 360° in 3D"
             >
               {/* Central Volumetric 3D Sphere (Static) */}
               <div className="volumetric-3d-sphere">
@@ -733,7 +733,7 @@ export default function ChatStudio({
                     <button 
                       className={`action-icon-btn user-copy-btn ${copiedId === msg.id ? 'is-copied' : ''}`} 
                       onClick={() => copyText(msg.content, msg.id)}
-                      title="Copy question"
+                      data-tooltip="Copy question"
                     >
                       {copiedId === msg.id ? <Check size={12} className="text-accent" /> : <Copy size={12} />}
                     </button>
@@ -759,7 +759,7 @@ export default function ChatStudio({
                           key={src.id || sIdx} 
                           className="perplexity-source-pill"
                           onClick={() => setActiveSource(src)}
-                          title={`View passage from ${src.fileName}`}
+                          data-tooltip={`View passage from ${src.fileName}`}
                         >
                           <span className="source-num-badge">{sIdx + 1}</span>
                           <FileText size={11} className="source-file-icon" />
@@ -776,12 +776,12 @@ export default function ChatStudio({
                     <button 
                       className={`action-icon-btn ${copiedId === msg.id ? 'is-copied' : ''}`} 
                       onClick={() => copyText(msg.content, msg.id)}
-                      title="Copy response"
+                      data-tooltip="Copy response"
                     >
                       {copiedId === msg.id ? <Check size={13} className="text-accent" /> : <Copy size={13} />}
                     </button>
-                    <button className="action-icon-btn" title="Good response"><ThumbsUp size={14} /></button>
-                    <button className="action-icon-btn" title="Bad response"><ThumbsDown size={14} /></button>
+                    <button className="action-icon-btn" data-tooltip="Good response"><ThumbsUp size={14} /></button>
+                    <button className="action-icon-btn" data-tooltip="Bad response"><ThumbsDown size={14} /></button>
                   </div>
                 </div>
               )}
@@ -842,7 +842,7 @@ export default function ChatStudio({
                       key={src.id || sIdx} 
                       className="perplexity-source-pill"
                       onClick={() => setActiveSource(src)}
-                      title={`View passage from ${src.fileName}`}
+                      data-tooltip={`View passage from ${src.fileName}`}
                     >
                       <span className="source-num-badge">{sIdx + 1}</span>
                       <FileText size={11} className="source-file-icon" />
@@ -876,7 +876,7 @@ export default function ChatStudio({
             type="button" 
             className="input-attach-btn"
             onClick={onNavigateToIngestion}
-            title="Attach Document"
+            data-tooltip="Attach document"
           >
             <Plus size={18} />
           </button>

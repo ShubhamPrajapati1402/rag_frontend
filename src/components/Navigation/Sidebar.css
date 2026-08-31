@@ -11,7 +11,7 @@
   position: relative;
   z-index: 40;
   box-sizing: border-box;
-  transition: width 0.2s ease, padding 0.2s ease;
+  transition: width 0.24s cubic-bezier(0.22, 1, 0.36, 1), padding 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 [data-theme="light"] .chatgpt-sidebar-root {
@@ -25,6 +25,27 @@
   align-items: center;
 }
 
+/* Prevent expanded content from spilling into the main pane mid-transition. */
+.chatgpt-sidebar-root:not(.collapsed) {
+  overflow-x: hidden;
+}
+
+/* Fade expanded content in as the width transition completes. Opacity-only
+   avoids shifting controls outside the sidebar while it is resizing. */
+.chatgpt-sidebar-root:not(.collapsed) .sidebar-brand-header,
+.chatgpt-sidebar-root:not(.collapsed) .sidebar-search-bar,
+.chatgpt-sidebar-root:not(.collapsed) .sidebar-action-container,
+.chatgpt-sidebar-root:not(.collapsed) .sidebar-nav-section,
+.chatgpt-sidebar-root:not(.collapsed) .sidebar-history-pane,
+.chatgpt-sidebar-root:not(.collapsed) .sidebar-bottom-profile {
+  animation: sidebarExpandedContentFade 0.16s ease-out both;
+}
+
+@keyframes sidebarExpandedContentFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .chatgpt-sidebar-root.collapsed .sidebar-bottom-profile {
   padding: 8px 0;
   display: flex;
@@ -36,6 +57,50 @@
   justify-content: center;
   width: 36px;
   height: 36px;
+}
+
+/* Rounded, app-native tooltips for sidebar controls. */
+.chatgpt-sidebar-root [data-tooltip] {
+  position: relative;
+}
+
+.chatgpt-sidebar-root [data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 100;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: min(240px, calc(100vw - 32px));
+  padding: 7px 9px;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.16));
+  border-radius: 8px;
+  background: var(--bg-surface, #212121);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.26);
+  color: var(--text-primary, #ffffff);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.35;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 3px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.chatgpt-sidebar-root [data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.chatgpt-sidebar-root.collapsed [data-tooltip]::after {
+  left: calc(100% + 8px);
+  bottom: auto;
+  top: 50%;
+  transform: translate(3px, -50%);
+}
+
+.chatgpt-sidebar-root.collapsed [data-tooltip]:hover::after {
+  transform: translate(0, -50%);
 }
 
 /* Brand Header Row */
@@ -335,6 +400,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -443,6 +509,20 @@
   overflow: visible;
   text-overflow: clip;
   animation: singleTitlePingPong 3.8s ease-in-out infinite alternate;
+}
+
+/* Keep the existing in-row chat-title animation free of competing popovers. */
+
+.sidebar-brand-header .sidebar-action-btn[data-tooltip]::after {
+  left: auto;
+  right: 0;
+  top: calc(100% + 8px);
+  bottom: auto;
+  transform: translate(0, 3px);
+}
+
+.sidebar-brand-header .sidebar-action-btn[data-tooltip]:hover::after {
+  transform: translate(0, 0);
 }
 
 @keyframes singleTitlePingPong {

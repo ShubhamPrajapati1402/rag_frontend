@@ -13,6 +13,7 @@ import {
   Database, 
   Search, 
   ChevronRight, 
+  ChevronDown,
   BarChart3,
   Layers,
   HelpCircle,
@@ -53,6 +54,7 @@ export default function DeveloperEvaluationDashboard({
   const [detailsLoading, setDetailsLoading] = useState<boolean>(false);
   const [isTriggering, setIsTriggering] = useState<boolean>(false);
   const [casesPerDoc, setCasesPerDoc] = useState<number>(2);
+  const [isCasesMenuOpen, setIsCasesMenuOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterMode, setFilterMode] = useState<'all' | 'unsupported'>('all');
   const [expandedContexts, setExpandedContexts] = useState<Record<number, boolean>>({});
@@ -303,16 +305,38 @@ export default function DeveloperEvaluationDashboard({
         <div className="eval-header-actions">
           <div className="cases-selector-box">
             <span className="selector-label">Cases/Doc:</span>
-            <select 
-              value={casesPerDoc} 
-              onChange={(e) => setCasesPerDoc(Number(e.target.value))}
+            <div className="cases-select-menu">
+              <button
+                type="button"
+                className="cases-select"
+                onClick={() => setIsCasesMenuOpen((open) => !open)}
               disabled={isTriggering}
-              className="cases-select"
-            >
-              <option value={1}>1 Case</option>
-              <option value={2}>2 Cases</option>
-              <option value={3}>3 Cases</option>
-            </select>
+                aria-haspopup="listbox"
+                aria-expanded={isCasesMenuOpen}
+              >
+                <span>{casesPerDoc} {casesPerDoc === 1 ? 'Case' : 'Cases'}</span>
+                <ChevronDown size={15} aria-hidden="true" />
+              </button>
+              {isCasesMenuOpen && (
+                <div className="cases-options" role="listbox">
+                  {[1, 2, 3].map((count) => (
+                    <button
+                      type="button"
+                      key={count}
+                      role="option"
+                      aria-selected={casesPerDoc === count}
+                      className={casesPerDoc === count ? 'is-selected' : ''}
+                      onClick={() => {
+                        setCasesPerDoc(count);
+                        setIsCasesMenuOpen(false);
+                      }}
+                    >
+                      {count} {count === 1 ? 'Case' : 'Cases'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <button
@@ -337,7 +361,7 @@ export default function DeveloperEvaluationDashboard({
           <button
             onClick={() => setShowTeamModal(true)}
             className="eval-team-btn"
-            title="Manage Authorized Developer Team"
+            data-tooltip="Manage authorized developer team"
           >
             <Users size={14} />
             <span>Developer Team</span>
@@ -346,7 +370,7 @@ export default function DeveloperEvaluationDashboard({
           <button 
             onClick={() => fetchRuns(false)} 
             className="eval-refresh-btn"
-            title="Refresh runs"
+            data-tooltip="Refresh runs"
           >
             <RotateCw size={14} className={loading ? 'is-spinning' : ''} />
           </button>
@@ -356,7 +380,7 @@ export default function DeveloperEvaluationDashboard({
       {/* Top 6 Metric Cards Bar */}
       {latestRun ? (
         <div className="eval-metrics-grid anim-slide-up">
-          <div className="eval-metric-card primary-card" title="Composite weighted quality score of all RAG dimensions">
+          <div className="eval-metric-card primary-card" data-tooltip="Composite weighted quality score of all RAG dimensions">
             <div className="metric-header">
               <span className="metric-title">Overall RAG Score</span>
               <Sparkles size={16} className="metric-icon primary" />
@@ -365,14 +389,17 @@ export default function DeveloperEvaluationDashboard({
               {(latestRun.overall_rag_score * 100).toFixed(1)}%
             </div>
             <div className="metric-footer">
-              <span className="metric-sub">Composite Triad</span>
-              <span className={`metric-status-pill ${latestRun.status.toLowerCase()}`}>
-                • {latestRun.status === 'COMPLETED' ? 'Completed' : 'Running'}
+              <span className="metric-sub">Composite Quality</span>
+              <span
+                className={`metric-status-pill ${latestRun.status.toLowerCase()}`}
+                aria-label={latestRun.status === 'COMPLETED' ? 'Completed' : 'Running'}
+              >
+                {latestRun.status === 'COMPLETED' ? 'Done' : 'Running'}
               </span>
             </div>
           </div>
 
-          <div className="eval-metric-card" title="Faithfulness: Verifies 0 hallucinations by checking if all answer claims are entailed by document text">
+          <div className="eval-metric-card" data-tooltip="Faithfulness: Verifies 0 hallucinations by checking if all answer claims are entailed by document text">
             <div className="metric-header">
               <span className="metric-title">Faithfulness</span>
               <CheckCircle2 size={16} className="metric-icon emerald" />
@@ -385,7 +412,7 @@ export default function DeveloperEvaluationDashboard({
             </div>
           </div>
 
-          <div className="eval-metric-card" title="Answer Relevance: Measures how directly and concisely the answer answers the user question">
+          <div className="eval-metric-card" data-tooltip="Answer Relevance: Measures how directly and concisely the answer answers the user question">
             <div className="metric-header">
               <span className="metric-title">Answer Relevance</span>
               <BarChart3 size={16} className="metric-icon sky" />
@@ -398,7 +425,7 @@ export default function DeveloperEvaluationDashboard({
             </div>
           </div>
 
-          <div className="eval-metric-card" title="Context Precision: Measures whether the most relevant document chunks are ranked at the top (Rank #1)">
+          <div className="eval-metric-card" data-tooltip="Context Precision: Measures whether the most relevant document chunks are ranked at the top (Rank #1)">
             <div className="metric-header">
               <span className="metric-title">Context Precision</span>
               <Layers size={16} className="metric-icon amber" />
@@ -411,7 +438,7 @@ export default function DeveloperEvaluationDashboard({
             </div>
           </div>
 
-          <div className="eval-metric-card" title="Context Recall: Measures whether all necessary facts from the ground truth were retrieved">
+          <div className="eval-metric-card" data-tooltip="Context Recall: Measures whether all necessary facts from the ground truth were retrieved">
             <div className="metric-header">
               <span className="metric-title">Context Recall</span>
               <BookOpen size={16} className="metric-icon emerald" />
@@ -424,7 +451,7 @@ export default function DeveloperEvaluationDashboard({
             </div>
           </div>
 
-          <div className="eval-metric-card" title="Average Latency: Total execution time for retriever, reranker, and generator nodes">
+          <div className="eval-metric-card" data-tooltip="Average Latency: Total execution time for retriever, reranker, and generator nodes">
             <div className="metric-header">
               <span className="metric-title">Avg Latency</span>
               <Clock size={16} className="metric-icon purple" />
@@ -485,7 +512,7 @@ export default function DeveloperEvaluationDashboard({
                         <button
                           className="delete-run-btn"
                           onClick={(e) => handleDeleteRun(run.id, e)}
-                          title={`Delete Run #${run.id}`}
+                          data-tooltip={`Delete Run #${run.id}`}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -759,7 +786,7 @@ export default function DeveloperEvaluationDashboard({
                       <button
                         onClick={() => handleRevokeAccess(dev.email)}
                         className="member-revoke-btn"
-                        title={`Revoke developer access for ${dev.email}`}
+                        data-tooltip={`Revoke developer access for ${dev.email}`}
                       >
                         Revoke
                       </button>

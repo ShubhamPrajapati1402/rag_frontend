@@ -4,8 +4,8 @@ import {
   FolderOpen, 
   Search, 
   Trash2, 
-  PanelLeftClose, 
-  PanelLeftOpen, 
+  PanelLeftOpen,
+  PanelLeftClose,
   Settings, 
   LogOut, 
   HelpCircle, 
@@ -100,28 +100,28 @@ export default function Sidebar({
             <button 
               className="sidebar-action-btn" 
               onClick={onToggleCollapse} 
-              title="Expand Sidebar (Ctrl+B)"
+              data-tooltip="Expand sidebar (Ctrl+B)"
             >
               <PanelLeftOpen size={17} />
             </button>
             <button 
               className="sidebar-action-btn" 
               onClick={onNewSession} 
-              title="New Chat"
+              data-tooltip="New chat"
             >
               <SquarePen size={17} />
             </button>
             <button 
               className="sidebar-action-btn" 
               onClick={onOpenCommandPalette} 
-              title="Search (Ctrl+K)"
+              data-tooltip="Search (Ctrl+K)"
             >
               <Search size={17} />
             </button>
             <button 
               className={`sidebar-action-btn ${activeTab === 'documents' ? 'is-active' : ''}`} 
               onClick={onOpenDocManager} 
-              title={`Projects (${docCount})`}
+              data-tooltip={`Projects (${docCount})`}
             >
               <FolderOpen size={17} />
             </button>
@@ -130,7 +130,7 @@ export default function Sidebar({
               <button 
                 className={`sidebar-action-btn ${activeTab === 'evaluation' ? 'is-active' : ''}`} 
                 onClick={onOpenEvaluations} 
-                title="RAG Benchmarks (Developer)"
+                data-tooltip="RAG benchmarks (Developer)"
               >
                 <ShieldCheck size={17} className="text-indigo-400" />
               </button>
@@ -145,10 +145,10 @@ export default function Sidebar({
                 <span className="sidebar-brand-title">Noesis<span className="brand-reg">®</span></span>
               </div>
               <div className="brand-header-actions">
-                <button 
-                  className="sidebar-action-btn" 
-                  onClick={onToggleCollapse} 
-                  title="Collapse Sidebar (Ctrl+B)"
+                <button
+                  className="sidebar-action-btn"
+                  onClick={onToggleCollapse}
+                  data-tooltip="Collapse sidebar (Ctrl+B)"
                 >
                   <PanelLeftClose size={17} />
                 </button>
@@ -159,7 +159,7 @@ export default function Sidebar({
             <div 
               className="sidebar-search-bar"
               onClick={onOpenCommandPalette}
-              title="Search chats (Ctrl+K)"
+              data-tooltip="Search chats (Ctrl+K)"
             >
               <Search size={14} className="sidebar-search-icon" />
               <span className="sidebar-search-placeholder">Search</span>
@@ -279,7 +279,7 @@ export default function Sidebar({
                                   e.stopPropagation();
                                   setSessionToDelete(session);
                                 }}
-                                title="Delete chat"
+                                data-tooltip="Delete chat"
                               >
                                 <Trash2 size={13} />
                               </button>
@@ -300,7 +300,7 @@ export default function Sidebar({
           <button 
             className="user-profile-row-btn"
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-            title="User Profile"
+            data-tooltip="User profile"
           >
             <div className="user-avatar-wrap">
               <div className="user-avatar-circle">

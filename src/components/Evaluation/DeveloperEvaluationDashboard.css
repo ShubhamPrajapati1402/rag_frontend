@@ -34,6 +34,7 @@
 .eval-title-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 6px;
 }
@@ -82,7 +83,7 @@
   gap: 8px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  padding: 5px 12px;
+  padding: 5px 8px 5px 12px;
   border-radius: var(--radius-pill);
 }
 
@@ -93,27 +94,67 @@
   user-select: none;
 }
 
+.cases-select-menu {
+  position: relative;
+}
+
 .cases-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 96px;
   background: var(--bg-input);
   color: var(--text-primary);
   border: 1px solid var(--border-medium);
-  border-radius: 8px;
-  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  padding: 6px 10px 6px 12px;
   font-size: 0.78rem;
   font-weight: 600;
   outline: none;
   cursor: pointer;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.cases-select option {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  padding: 6px;
-}
-
-.cases-select:focus {
+.cases-select:hover,
+.cases-select:focus-visible {
+  background: var(--bg-surface-hover);
   border-color: var(--border-focus);
+}
+
+.cases-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 100%;
+  padding: 5px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+  overflow: hidden;
+}
+
+.cases-options button {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.cases-options button:hover,
+.cases-options button.is-selected {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
 }
 
 /* --- Action Buttons --- */
@@ -204,7 +245,7 @@
 /* --- Top Metric Cards Grid --- */
 .eval-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 20px;
   flex-shrink: 0;
@@ -223,32 +264,128 @@
 }
 
 .eval-metric-card {
+  position: relative;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 14px 16px;
+  padding: 10px 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  box-sizing: border-box;
+  min-width: 0;
   transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.eval-metric-card[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  top: calc(100% + 10px);
+  width: max-content;
+  max-width: min(340px, calc(100vw - 32px));
+  padding: 9px 11px;
+  border: 1px solid var(--border-medium);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.eval-metric-card[data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Edge cards anchor their tooltip inward so it remains fully visible. */
+.eval-metrics-grid .eval-metric-card:first-child[data-tooltip]::after {
+  left: 0;
+  transform: translate(0, 4px);
+}
+
+.eval-metrics-grid .eval-metric-card:first-child[data-tooltip]:hover::after {
+  transform: translate(0, 0);
+}
+
+.eval-metrics-grid .eval-metric-card:last-child[data-tooltip]::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, 4px);
+}
+
+.eval-metrics-grid .eval-metric-card:last-child[data-tooltip]:hover::after {
+  transform: translate(0, 0);
+}
+
+/* Rounded tooltips for dashboard action controls. */
+.eval-dashboard-root [data-tooltip]:not(.eval-metric-card) {
+  position: relative;
+}
+
+.eval-dashboard-root [data-tooltip]:not(.eval-metric-card)::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 40;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: min(260px, calc(100vw - 32px));
+  padding: 7px 9px;
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25);
+  color: var(--text-primary);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.35;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 3px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.eval-dashboard-root [data-tooltip]:not(.eval-metric-card):hover::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .metric-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
+  align-items: flex-start;
+  min-height: 30px;
+  gap: 8px;
+  margin-bottom: 5px;
 }
 
 .metric-title {
+  display: block;
   font-size: 0.74rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  line-height: 1.25;
   color: var(--text-muted);
 }
 
-.metric-icon { color: var(--text-secondary); }
+.metric-icon {
+  color: var(--text-secondary);
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
 .metric-icon.primary { color: var(--text-primary); }
 .metric-icon.emerald { color: #10b981; }
 .metric-icon.sky { color: #0ea5e9; }
@@ -279,7 +416,7 @@
 }
 
 .metric-sub {
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   color: var(--text-muted);
 }
 
@@ -1307,7 +1444,7 @@
 }
 
 .metric-sub {
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -1316,13 +1453,13 @@
 }
 
 .metric-status-pill {
-  font-size: 0.7rem;
+  font-size: 0.52rem;
   font-weight: 600;
   padding: 0 !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   line-height: 1;
   flex-shrink: 0;
   white-space: nowrap;
@@ -1333,8 +1470,56 @@
   font-weight: 700;
 }
 
+.primary-card .metric-status-pill {
+  color: #10b981 !important;
+  font-size: 0.54rem;
+  font-weight: 700;
+}
+
 .metric-status-pill.running {
   color: #818cf8 !important;
   font-weight: 700;
   animation: pulse 1.8s infinite ease-in-out;
+}
+
+/* Keep the dashboard controls readable when the available width is limited. */
+@media (max-width: 1100px) {
+  .eval-top-header {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .eval-header-left {
+    max-width: none;
+  }
+
+  .eval-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 560px) {
+  .eval-dashboard-root {
+    padding: 16px 14px 64px;
+  }
+
+  .eval-main-title {
+    font-size: 1.18rem;
+  }
+
+  .eval-header-actions {
+    gap: 8px;
+  }
+
+  .cases-selector-box {
+    flex: 1;
+    justify-content: space-between;
+  }
+
+  .eval-trigger-btn,
+  .eval-team-btn {
+    flex: 1;
+    justify-content: center;
+  }
 }

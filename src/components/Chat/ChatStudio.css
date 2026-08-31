@@ -8,6 +8,41 @@
   background-color: var(--bg-app);
 }
 
+/* Rounded, animated tooltips preserve the existing chat interactions. */
+.chatgpt-canvas-root [data-tooltip] {
+  position: relative;
+}
+
+.chatgpt-canvas-root [data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 60;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: min(300px, calc(100vw - 32px));
+  padding: 8px 10px;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.16));
+  border-radius: 9px;
+  background: var(--bg-surface, #212121);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  color: var(--text-primary, #ffffff);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.chatgpt-canvas-root [data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 /* Full-width scrollable pane - scrollbar is positioned at the far right edge of the screen */
 .chatgpt-scroll-area {
   flex: 1;
@@ -1340,4 +1375,3 @@
   font-size: 13.5px;
   margin-top: 8px;
 }
-

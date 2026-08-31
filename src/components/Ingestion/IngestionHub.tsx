@@ -309,7 +309,7 @@ export default function IngestionHub({ documents, setDocuments, onUpdateDocCount
                   {filteredDocs.map((doc) => (
                     <tr key={doc.id} className="doc-table-row">
                       <td>
-                        <div className="cell-doc-name">
+                        <div className="cell-doc-name" data-tooltip={doc.name}>
                           <span className="table-file-icon">
                             {doc.format === 'PDF' && <FileText size={16} className="text-rose-500" />}
                             {doc.format === 'Excel' && <FileSpreadsheet size={16} className="text-emerald-500" />}
@@ -317,7 +317,7 @@ export default function IngestionHub({ documents, setDocuments, onUpdateDocCount
                             {doc.format === 'Markdown' && <FileCode size={16} className="text-blue-500" />}
                             {doc.format !== 'PDF' && doc.format !== 'Excel' && doc.format !== 'CSV' && doc.format !== 'Markdown' && <FileBox size={16} />}
                           </span>
-                          <span className="name-text-strong" title={doc.name}>{doc.name}</span>
+                          <span className="name-text-strong">{doc.name}</span>
                         </div>
                       </td>
                       <td>
@@ -337,14 +337,14 @@ export default function IngestionHub({ documents, setDocuments, onUpdateDocCount
                           <button 
                             className="table-action-icon-btn" 
                             onClick={() => handleOpenPreview(doc)}
-                            title="Preview Document Information"
+                            data-tooltip="Preview document information"
                           >
                             <Eye size={15} />
                           </button>
                           <button 
                             className="table-action-icon-btn text-danger" 
                             onClick={() => handleDelete(doc.id)}
-                            title="Delete Document"
+                            data-tooltip="Delete document"
                           >
                             <Trash2 size={15} />
                           </button>
@@ -394,7 +394,7 @@ export default function IngestionHub({ documents, setDocuments, onUpdateDocCount
                   <button 
                     className={`btn-copy-preview ${copiedPreview ? 'copied' : ''}`}
                     onClick={() => handleCopyPreview(selectedDoc.previewText)}
-                    title="Copy extracted text"
+                    data-tooltip="Copy extracted text"
                   >
                     {copiedPreview ? <Check size={13} /> : <Copy size={13} />}
                     <span>{copiedPreview ? 'Copied' : 'Copy'}</span>
