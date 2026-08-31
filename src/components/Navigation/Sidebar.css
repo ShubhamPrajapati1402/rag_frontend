@@ -704,6 +704,19 @@
   z-index: 500;
 }
 
+/* In collapsed mode, float the menu beside the narrow rail instead of
+   squeezing its labels into the 56px sidebar width. */
+.chatgpt-sidebar-root.collapsed .profile-dropdown-menu {
+  left: calc(100% + 8px);
+  right: auto;
+  bottom: 0;
+  width: 236px;
+}
+
+.sidebar-bottom-profile:has(.profile-dropdown-menu) .user-profile-row-btn::after {
+  display: none;
+}
+
 [data-theme="light"] .profile-dropdown-menu {
   background: #ffffff;
   border-color: rgba(0, 0, 0, 0.1);
