@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import Navbar from './components/Header/Navbar';
 import Sidebar from './components/Navigation/Sidebar';
+import Navbar from './components/Header/Navbar';
 import ChatStudio, { evictSessionCache } from './components/Chat/ChatStudio';
 import IngestionHub from './components/Ingestion/IngestionHub';
-import CommandPalette from './components/CommandPalette/CommandPalette';
+import DeveloperEvaluationDashboard from './components/Evaluation/DeveloperEvaluationDashboard';
 import AuthModal from './components/Auth/AuthModal';
-import { authApi } from './services/authApi';
+import CommandPalette from './components/CommandPalette/CommandPalette';
 import { chatApi } from './services/chatApi';
-import { ThemeType, DocumentItem, ChatSession, UserProfile } from './types';
+import { authApi } from './services/authApi';
+import { DocumentItem, ChatSession, ThemeType, UserProfile } from './types';
 import './App.css';
 
 function getInitialTheme(): ThemeType {
@@ -26,13 +27,20 @@ function getSessionIdFromPath(): string {
   return match ? match[1] : '';
 }
 
+function getInitialTabFromPath(): 'chat' | 'documents' | 'evaluation' {
+  if (window.location.pathname.startsWith('/developer/evaluation') || window.location.pathname.startsWith('/evaluation')) {
+    return 'evaluation';
+  }
+  return 'chat';
+}
+
 function App() {
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const [theme, setTheme] = useState<ThemeType>(getInitialTheme);
-  const [activeTab, setActiveTab] = useState<'chat' | 'documents'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'documents' | 'evaluation'>(getInitialTabFromPath);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   
@@ -58,9 +66,13 @@ function App() {
     }
   }, []);
 
-  // Listen to browser Back / Forward popstate events for /c/:sessionId routing
+  // Listen to browser Back / Forward popstate events for /c/:sessionId and /developer/evaluation routing
   useEffect(() => {
     const handlePopState = () => {
+      if (window.location.pathname.startsWith('/developer/evaluation') || window.location.pathname.startsWith('/evaluation')) {
+        setActiveTab('evaluation');
+        return;
+      }
       const pathSessionId = getSessionIdFromPath();
       setCurrentSessionId(pathSessionId);
       setActiveTab('chat');
@@ -130,6 +142,21 @@ function App() {
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
   }, []);
 
+  const handleTabSwitch = (tab: 'chat' | 'documents' | 'evaluation') => {
+    setActiveTab(tab);
+    if (tab === 'evaluation') {
+      window.history.pushState(null, '', '/developer/evaluation');
+    } else if (tab === 'documents') {
+      window.history.pushState(null, '', '/');
+    } else {
+      if (currentSessionId) {
+        window.history.pushState(null, '', `/c/${currentSessionId}`);
+      } else {
+        window.history.pushState(null, '', '/');
+      }
+    }
+  };
+
   const handleLogin = (user: UserProfile) => {
     setUserProfile(user);
     setIsAuthenticated(true);
@@ -147,28 +174,25 @@ function App() {
     setIsAuthenticated(false);
     setUserProfile(null);
     setChatSessions([]);
+    setDocuments([]);
     setCurrentSessionId('');
     window.history.pushState(null, '', '/');
   };
 
   const handleToggleTheme = () => {
-    const nextTheme: ThemeType = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    localStorage.setItem('app-theme', nextTheme);
+    setTheme(prev => {
+      const nextTheme = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('app-theme', nextTheme);
+      return nextTheme;
+    });
   };
 
-  // Switch to session with URL routing
   const handleSelectSession = (id: string) => {
     setCurrentSessionId(id);
     setActiveTab('chat');
-    if (id) {
-      window.history.pushState(null, '', `/c/${id}`);
-    } else {
-      window.history.pushState(null, '', '/');
-    }
+    window.history.pushState(null, '', id ? `/c/${id}` : '/');
   };
 
-  // "New Chat" clears current session ID and sets URL to '/'
   const handleNewSession = () => {
     setCurrentSessionId('');
     setActiveTab('chat');
@@ -184,6 +208,7 @@ function App() {
       return [{ id: newSession.id, title: newSession.title || 'New Conversation' }, ...prev];
     });
     setCurrentSessionId(newSession.id);
+    window.history.pushState(null, '', `/c/${newSession.id}`);
   }, []);
 
   const handleSessionTitleUpdated = useCallback((sessionId: string, title: string) => {
@@ -201,8 +226,7 @@ function App() {
     evictSessionCache(id);
     setChatSessions(prev => prev.filter(s => s.id !== id));
     if (currentSessionId === id) {
-      setCurrentSessionId('');
-      window.history.pushState(null, '', '/');
+      handleNewSession();
     }
   };
 
@@ -230,7 +254,9 @@ function App() {
           onSelectSession={handleSelectSession}
           onNewSession={handleNewSession}
           onDeleteSession={handleDeleteSession}
-          onOpenDocManager={() => setActiveTab('documents')}
+          onOpenDocManager={() => handleTabSwitch('documents')}
+          onOpenEvaluations={() => handleTabSwitch('evaluation')}
+          activeTab={activeTab}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
@@ -246,8 +272,9 @@ function App() {
             theme={theme}
             onToggleTheme={handleToggleTheme}
             activeTab={activeTab}
-            setActiveTab={setActiveTab}
+            setActiveTab={handleTabSwitch}
             docCount={documents.length}
+            userProfile={userProfile}
           />
 
           <div className="app-content-stage">
@@ -257,16 +284,21 @@ function App() {
                 onSelectSession={handleSelectSession}
                 onSessionCreated={handleSessionCreated}
                 onSessionTitleUpdated={handleSessionTitleUpdated}
-                onNavigateToIngestion={() => setActiveTab('documents')}
+                onNavigateToIngestion={() => handleTabSwitch('documents')}
                 docCount={documents.length}
                 documents={documents}
                 onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
                 userProfile={userProfile}
               />
-            ) : (
+            ) : activeTab === 'documents' ? (
               <IngestionHub 
                 documents={documents}
                 setDocuments={setDocuments}
+              />
+            ) : (
+              <DeveloperEvaluationDashboard 
+                userProfile={userProfile}
+                onNavigateToChat={() => handleTabSwitch('chat')}
               />
             )}
           </div>
@@ -286,7 +318,7 @@ function App() {
         }}
         chatSessions={chatSessions}
         onOpenDocManager={() => {
-          setActiveTab('documents');
+          handleTabSwitch('documents');
           setIsCommandPaletteOpen(false);
         }}
       />

@@ -47,8 +47,46 @@ export interface UserProfile {
   name: string;
   email: string;
   role?: string;
+  is_superuser?: boolean;
   avatarUrl?: string;
   avatar?: string;
   picture?: string;
   image?: string;
+}
+
+export interface EvaluationClaim {
+  claim: string;
+  supported: boolean;
+  reason: string;
+}
+
+export interface EvaluationCase {
+  id: number;
+  document_name: string;
+  question: string;
+  ground_truth?: string;
+  generated_answer: string;
+  retrieved_contexts?: string[];
+  faithfulness: number;
+  answer_relevancy: number;
+  context_precision: number;
+  context_recall: number;
+  claims_evaluation?: EvaluationClaim[];
+  latency_ms: number;
+}
+
+export interface EvaluationRun {
+  id: number;
+  title: string;
+  eval_mode: string;
+  total_cases: number;
+  faithfulness_score: number;
+  answer_relevancy_score: number;
+  context_precision_score: number;
+  context_recall_score: number;
+  overall_rag_score: number;
+  avg_latency_ms: number;
+  status: 'RUNNING' | 'COMPLETED' | 'FAILED';
+  created_at: string;
+  cases?: EvaluationCase[];
 }

@@ -14,7 +14,8 @@ import {
   X,
   Keyboard,
   Check,
-  ChevronsUpDown
+  ChevronsUpDown,
+  ShieldCheck
 } from 'lucide-react';
 import { ChatSession, ThemeType, UserProfile } from '../../types';
 import './Sidebar.css';
@@ -26,6 +27,8 @@ interface SidebarProps {
   onNewSession: () => void;
   onDeleteSession: (id: string) => void;
   onOpenDocManager: () => void;
+  onOpenEvaluations?: () => void;
+  activeTab?: 'chat' | 'documents' | 'evaluation';
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   onOpenCommandPalette: () => void;
@@ -43,6 +46,8 @@ export default function Sidebar({
   onNewSession, 
   onDeleteSession,
   onOpenDocManager,
+  onOpenEvaluations,
+  activeTab = 'chat',
   isCollapsed,
   onToggleCollapse,
   onOpenCommandPalette,
@@ -88,6 +93,7 @@ export default function Sidebar({
   return (
     <>
       <aside className={`chatgpt-sidebar-root ${isCollapsed ? 'collapsed' : ''}`}>
+        {/* Top Section */}
         {isCollapsed ? (
           /* Collapsed State: Single Clean Vertical Stack of Icon Buttons */
           <div className="collapsed-vertical-stack">
@@ -113,12 +119,22 @@ export default function Sidebar({
               <Search size={17} />
             </button>
             <button 
-              className="sidebar-action-btn" 
+              className={`sidebar-action-btn ${activeTab === 'documents' ? 'is-active' : ''}`} 
               onClick={onOpenDocManager} 
               title={`Projects (${docCount})`}
             >
               <FolderOpen size={17} />
             </button>
+
+            {userProfile?.is_superuser && onOpenEvaluations && (
+              <button 
+                className={`sidebar-action-btn ${activeTab === 'evaluation' ? 'is-active' : ''}`} 
+                onClick={onOpenEvaluations} 
+                title="RAG Benchmarks (Developer)"
+              >
+                <ShieldCheck size={17} className="text-indigo-400" />
+              </button>
+            )}
           </div>
         ) : (
           /* Expanded State: Full ChatGPT-style Layout */
@@ -160,11 +176,25 @@ export default function Sidebar({
 
             {/* Navigation Section Tabs */}
             <div className="sidebar-nav-section">
-              <button className="sidebar-nav-item" onClick={onOpenDocManager}>
+              <button 
+                className={`sidebar-nav-item ${activeTab === 'documents' ? 'is-active' : ''}`} 
+                onClick={onOpenDocManager}
+              >
                 <FolderOpen size={15} />
                 <span className="nav-item-label">Projects</span>
                 <span className="nav-item-badge">{docCount}</span>
               </button>
+
+              {userProfile?.is_superuser && onOpenEvaluations && (
+                <button 
+                  className={`sidebar-nav-item ${activeTab === 'evaluation' ? 'is-active' : ''}`} 
+                  onClick={onOpenEvaluations}
+                >
+                  <ShieldCheck size={15} className="text-indigo-400" />
+                  <span className="nav-item-label">RAG Benchmarks</span>
+                  <span className="sidebar-dev-tag">DEV</span>
+                </button>
+              )}
             </div>
           </>
         )}

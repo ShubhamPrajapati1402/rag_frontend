@@ -306,6 +306,30 @@
   color: #52525b;
 }
 
+.sidebar-dev-tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  margin-left: auto;
+}
+
+.sidebar-nav-item.is-active,
+.sidebar-action-btn.is-active {
+  background: var(--bg-surface-hover, rgba(255, 255, 255, 0.08)) !important;
+  color: var(--text-primary, #ffffff) !important;
+}
+
+[data-theme="light"] .sidebar-nav-item.is-active,
+[data-theme="light"] .sidebar-action-btn.is-active {
+  background: rgba(99, 102, 241, 0.1) !important;
+  color: #4338ca !important;
+}
+
 /* History Section */
 .sidebar-history-pane {
   flex: 1;
