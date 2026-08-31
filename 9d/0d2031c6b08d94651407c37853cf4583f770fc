@@ -1,0 +1,24 @@
+src/App.tsx
+  h_6bfb1d88d0b1fe 16,18-22,24-27,191-193
+src/components/Evaluation/DeveloperEvaluationDashboard.css
+  h_6bfb1d88d0b1fe 548,550-552,556,561,566,798,800-802,806,811,816,1109-1110,1112-1116,1125,1132-1161,1168,1172-1174,1179-1180,1195-1197,1210-1239,1246,1249,1260-1261,1770,1773-1774,1776,1781-1782,1789-1790,1792-1793,1948,1950,1954,1956,1960,1962
+src/components/Evaluation/DeveloperEvaluationDashboard.tsx
+  h_6bfb1d88d0b1fe 758-759,769-778,787,789-792,806,818
+src/components/Header/Navbar.css
+  h_6bfb1d88d0b1fe 101,104-105,107
+src/components/Ingestion/IngestionHub.css
+  h_6bfb1d88d0b1fe 527-529,531,535-536,547-549,555,560,565
+src/components/Navigation/Sidebar.css
+  h_6bfb1d88d0b1fe 378-379,381
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "9d0d2031c6b08d94651407c37853cf4583f770fc",
+  "prompts": {},
+  "humans": {
+    "h_6bfb1d88d0b1fe": {
+      "author": "ShubhamPrajapati1402 <scprajapati14@gmail.com>"
+    }
+  }
+}
