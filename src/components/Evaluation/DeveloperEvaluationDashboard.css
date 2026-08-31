@@ -14,7 +14,6 @@
   box-sizing: border-box;
   font-family: var(--font-sans);
   overflow-y: auto;
-  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* --- Top Header --- */
@@ -546,25 +545,25 @@
 }
 
 .run-score-pill {
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: var(--bg-surface);
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
 .run-score-pill.score-high {
-  background: rgba(16, 185, 129, 0.12);
+  background: transparent;
   color: #10b981;
 }
 
 .run-score-pill.score-mid {
-  background: rgba(245, 158, 11, 0.12);
+  background: transparent;
   color: #f59e0b;
 }
 
 .run-score-pill.score-low {
-  background: rgba(239, 68, 68, 0.12);
+  background: transparent;
   color: #ef4444;
 }
 
@@ -796,25 +795,25 @@
 }
 
 .case-stat-badge {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--bg-surface);
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
 .case-stat-badge.score-high {
-  background: rgba(16, 185, 129, 0.12);
+  background: transparent;
   color: #10b981;
 }
 
 .case-stat-badge.score-mid {
-  background: rgba(245, 158, 11, 0.12);
+  background: transparent;
   color: #f59e0b;
 }
 
 .case-stat-badge.score-low {
-  background: rgba(239, 68, 68, 0.12);
+  background: transparent;
   color: #ef4444;
 }
 
@@ -1107,8 +1106,14 @@
   padding: 16px 20px 10px 20px;
 }
 
-.team-email-input {
+.team-email-input-wrapper {
+  position: relative;
   flex: 1;
+  display: flex;
+}
+
+.team-email-input {
+  width: 100%;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
@@ -1117,10 +1122,41 @@
   border-radius: var(--radius-sm);
   outline: none;
   transition: border-color 0.15s ease;
+  box-sizing: border-box;
 }
 
 .team-email-input:focus {
   border-color: var(--border-focus);
+}
+
+.team-email-input-wrapper[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 60;
+  left: 0;
+  bottom: calc(100% + 6px);
+  top: auto;
+  width: max-content;
+  max-width: 280px;
+  padding: 6px 9px;
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.team-email-input-wrapper[data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .invite-role-select-menu {
@@ -1129,18 +1165,19 @@
 }
 
 .invite-role-select {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  min-width: 110px;
-  height: 38px;
+  gap: 6px;
+  min-width: 88px;
+  height: 36px;
   background: var(--bg-input);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 0 10px 0 12px;
-  font-size: 0.8rem;
+  padding: 0 8px 0 10px;
+  font-size: 0.78rem;
   font-weight: 600;
   outline: none;
   cursor: pointer;
@@ -1155,17 +1192,9 @@
 }
 
 .invite-role-current {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.role-icon-admin {
-  color: #38bdf8;
-}
-
-.role-icon-member {
-  color: #818cf8;
+  display: inline-block;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .role-chevron {
@@ -1178,16 +1207,46 @@
   transform: rotate(180deg);
 }
 
+.invite-role-select[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 60;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  top: auto;
+  width: max-content;
+  max-width: 240px;
+  padding: 6px 9px;
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 3px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.invite-role-select[data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 .invite-role-options {
   position: absolute;
   z-index: 50;
   top: calc(100% + 6px);
   right: 0;
   min-width: 100%;
-  padding: 5px;
+  padding: 4px;
   background: var(--bg-surface);
   border: 1px solid var(--border-medium);
-  border-radius: 10px;
+  border-radius: 8px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
   overflow: hidden;
   display: flex;
@@ -1198,8 +1257,8 @@
 .invite-role-options button {
   width: 100%;
   border: 0;
-  border-radius: 6px;
-  padding: 8px 10px;
+  border-radius: 5px;
+  padding: 6px 10px;
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
@@ -1209,7 +1268,6 @@
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
   transition: background-color 0.15s ease, color 0.15s ease;
   white-space: nowrap;
 }
@@ -1709,28 +1767,30 @@
 .team-sync-badge {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: 0.68rem;
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 9999px;
-  background: var(--bg-surface-hover, #2a2a2a);
+  padding: 0;
+  background: transparent;
   color: var(--text-muted, #a3a3a3);
-  border: 1px solid var(--border-subtle, #383838);
+  border: none;
 }
 
 .team-sync-badge.connected {
   color: #10b981;
-  background: rgba(16, 185, 129, 0.08);
-  border-color: rgba(16, 185, 129, 0.25);
+  background: transparent;
+  border: none;
 }
 
 .sync-pulse-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: currentColor;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
   animation: pulse 2s infinite ease-in-out;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .member-avatar-wrapper {
@@ -1885,21 +1945,21 @@
 }
 
 .role-tag.admin {
-  background: rgba(99, 102, 241, 0.15);
+  background: transparent;
   color: #818cf8;
-  border: 1px solid rgba(99, 102, 241, 0.35);
+  border: none;
 }
 
 .role-tag.member {
-  background: rgba(16, 185, 129, 0.12);
+  background: transparent;
   color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  border: none;
 }
 
 .member-presence-tag.pending {
-  background: rgba(245, 158, 11, 0.12);
+  background: transparent;
   color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.28);
+  border: none;
 }
 
 .presence-indicator-dot.pending {

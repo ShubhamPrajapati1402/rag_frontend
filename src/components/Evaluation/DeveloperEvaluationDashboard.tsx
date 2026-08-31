@@ -755,8 +755,8 @@ export default function DeveloperEvaluationDashboard({
               <div className="modal-header-left">
                 <ShieldCheck size={20} className="modal-shield-icon" />
                 <div>
-                  <h3 className="modal-title">Developer Team & Access</h3>
-                  <p className="modal-subtitle">Grant or revoke developer & benchmark access by user email.</p>
+                  <h3 className="modal-title">Developer Team & Permissions</h3>
+                  <p className="modal-subtitle">Invite team members with Member or Admin roles to evaluate and benchmark RAG pipelines.</p>
                 </div>
               </div>
               <button className="modal-close-btn" onClick={() => setShowTeamModal(false)}>
@@ -766,14 +766,16 @@ export default function DeveloperEvaluationDashboard({
 
             {/* Invite Form */}
             <form onSubmit={handleGrantAccess} className="team-invite-form">
-              <input
-                type="email"
-                placeholder="Enter user email (e.g. teammate@example.com)"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                required
-                className="team-email-input"
-              />
+              <div className="team-email-input-wrapper" data-tooltip="Please enter developer email address">
+                <input
+                  type="email"
+                  placeholder="Enter teammate email (e.g. teammate@example.com)"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  required
+                  className="team-email-input"
+                />
+              </div>
               <div className="invite-role-select-menu" ref={roleMenuRef}>
                 <button
                   type="button"
@@ -782,22 +784,12 @@ export default function DeveloperEvaluationDashboard({
                   disabled={inviteSubmitting}
                   aria-haspopup="listbox"
                   aria-expanded={isRoleMenuOpen}
-                  title="Assign developer role"
+                  data-tooltip="Assign developer role permissions"
                 >
-                  <div className="invite-role-current">
-                    {inviteRole === 'ADMIN' ? (
-                      <>
-                        <ShieldCheck size={14} className="role-icon-admin" />
-                        <span>Admin</span>
-                      </>
-                    ) : (
-                      <>
-                        <Laptop size={14} className="role-icon-member" />
-                        <span>Member</span>
-                      </>
-                    )}
-                  </div>
-                  <ChevronDown size={14} className="role-chevron" aria-hidden="true" />
+                  <span className="invite-role-current">
+                    {inviteRole === 'ADMIN' ? 'Admin' : 'Member'}
+                  </span>
+                  <ChevronDown size={13} className="role-chevron" aria-hidden="true" />
                 </button>
                 {isRoleMenuOpen && (
                   <div className="invite-role-options anim-pop-in" role="listbox">
@@ -811,8 +803,7 @@ export default function DeveloperEvaluationDashboard({
                         setIsRoleMenuOpen(false);
                       }}
                     >
-                      <Laptop size={14} className="role-icon-member" />
-                      <span>Member</span>
+                      Member
                     </button>
                     <button
                       type="button"
@@ -824,8 +815,7 @@ export default function DeveloperEvaluationDashboard({
                         setIsRoleMenuOpen(false);
                       }}
                     >
-                      <ShieldCheck size={14} className="role-icon-admin" />
-                      <span>Admin</span>
+                      Admin
                     </button>
                   </div>
                 )}

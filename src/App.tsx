@@ -13,13 +13,18 @@ import './App.css';
 
 function getInitialTheme(): ThemeType {
   const saved = localStorage.getItem('app-theme') as ThemeType | null;
+  let initialTheme: ThemeType = 'dark';
   if (saved === 'dark' || saved === 'light') {
-    return saved;
+    initialTheme = saved;
+  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    initialTheme = 'dark';
+  } else {
+    initialTheme = 'light';
   }
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
-  }
-  return 'light';
+  document.documentElement.setAttribute('data-theme', initialTheme);
+  document.documentElement.classList.remove('light', 'dark');
+  document.documentElement.classList.add(initialTheme);
+  return initialTheme;
 }
 
 function getSessionIdFromPath(): string {
@@ -183,6 +188,9 @@ function App() {
     setTheme(prev => {
       const nextTheme = prev === 'dark' ? 'light' : 'dark';
       localStorage.setItem('app-theme', nextTheme);
+      document.documentElement.setAttribute('data-theme', nextTheme);
+      document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.classList.add(nextTheme);
       return nextTheme;
     });
   };
