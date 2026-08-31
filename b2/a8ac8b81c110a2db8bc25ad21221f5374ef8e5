@@ -1,0 +1,19 @@
+src/components/Navigation/Sidebar.css
+  s_572ec6f3df6ce0::t_7e8e4e75d9c859 707-719
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "b2a8ac8b81c110a2db8bc25ad21221f5374ef8e5",
+  "prompts": {},
+  "sessions": {
+    "s_572ec6f3df6ce0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05885-65b2-7210-82f3-2c8e1fa32666",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "ShubhamPrajapati1402 <scprajapati14@gmail.com>"
+    }
+  }
+}
