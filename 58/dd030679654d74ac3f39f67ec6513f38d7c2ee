@@ -1,0 +1,63 @@
+src/components/Ingestion/IngestionHub.css
+  s_572ec6f3df6ce0::t_d48e40c430bf57 432
+  s_572ec6f3df6ce0::t_a17e4326cc9452 10-14
+  s_572ec6f3df6ce0::t_d81023372fea59 51,56
+  s_572ec6f3df6ce0::t_647fc33974356d 52-55,57-67
+  s_572ec6f3df6ce0::t_a02bebd83ff828 15,17-50,886
+  s_572ec6f3df6ce0::t_6237dea60a005a 16
+src/components/Navigation/Sidebar.css
+  s_572ec6f3df6ce0::t_1c5a716fa86570 14
+  s_572ec6f3df6ce0::t_e2ccd39bfa08d7 403
+  s_572ec6f3df6ce0::t_0a804dc8b5065f 514-519,524
+  s_572ec6f3df6ce0::t_ba9c099aee2490 521-523,525-527
+  s_572ec6f3df6ce0::t_973549ca731f9a 33-48
+  s_572ec6f3df6ce0::t_7bef9d586a0476 62-105
+  s_572ec6f3df6ce0::t_3b005a0fb6cfd0 520
+  s_572ec6f3df6ce0::t_40c0dd7826d30a 28-32
+src/components/Chat/ChatStudio.tsx
+  s_572ec6f3df6ce0::t_7a081ff19a6332 632,736,762,779,783-784,845,879
+src/components/Evaluation/DeveloperEvaluationDashboard.css
+  s_572ec6f3df6ce0::t_7fd0843b967ead 271,367,369,382-388
+  s_572ec6f3df6ce0::t_e05dc7ecc21553 37,308,419,1456,1462,1484-1525
+  s_572ec6f3df6ce0::t_f88c33e506344f 1473,1477
+  s_572ec6f3df6ce0::t_25eb6bfe5df2a1 285
+  s_572ec6f3df6ce0::t_e2d1d57a5fd48a 86,97-100,102-106,110-111,116-122,125-131,133-136,139-157,248,276
+  s_572ec6f3df6ce0::t_2473d8da48f783 275,366,368,373,378,1478
+  s_572ec6f3df6ce0::t_51f71626a28d9c 267,280-284,286-307
+  s_572ec6f3df6ce0::t_eb6824c3ac6744 310-362
+  s_572ec6f3df6ce0::t_c7564cbee56cf9 1447
+  s_572ec6f3df6ce0::t_ae8e365b90379b 1474-1476
+  s_572ec6f3df6ce0::t_af925ea3a110fa 309
+src/components/Evaluation/DeveloperEvaluationDashboard.tsx
+  s_572ec6f3df6ce0::t_2e0296b77b8e8b 397
+  s_572ec6f3df6ce0::t_bdb7eb9bf0a036 383,402,415,428,441,454
+  s_572ec6f3df6ce0::t_d740d8d5e39a74 364,373,515,789
+  s_572ec6f3df6ce0::t_08c4b669a82ecc 16,57,308-312,314-335,830
+  s_572ec6f3df6ce0::t_b83b9c4c425ec7 392-396
+  s_572ec6f3df6ce0::t_ba95af371d736b 336-338
+  s_572ec6f3df6ce0::t_02bf4abf6de852 339
+src/components/Chat/ChatStudio.css
+  s_572ec6f3df6ce0::t_ce4b7aadee67cd 11-45
+src/components/Navigation/Sidebar.tsx
+  s_572ec6f3df6ce0::t_89023091577f52 7-8,148-151
+  s_572ec6f3df6ce0::t_8135b6ce71f4df 103,110,117,124,133,162,282,303
+src/components/Ingestion/IngestionHub.tsx
+  s_572ec6f3df6ce0::t_7cd249301e9ee5 312,320
+  s_572ec6f3df6ce0::t_8d3f6171137f92 340,347,397
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "58dd030679654d74ac3f39f67ec6513f38d7c2ee",
+  "prompts": {},
+  "sessions": {
+    "s_572ec6f3df6ce0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05885-65b2-7210-82f3-2c8e1fa32666",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "ShubhamPrajapati1402 <scprajapati14@gmail.com>"
+    }
+  }
+}
