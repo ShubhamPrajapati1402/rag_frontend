@@ -1,0 +1,22 @@
+README.md
+  h_6bfb1d88d0b1fe 28
+src/App.tsx
+  h_6bfb1d88d0b1fe 8,92-104,272-288
+src/components/Evaluation/AcceptInviteModal.tsx
+  h_6bfb1d88d0b1fe 2,4,51,78,90-95,98-100,104-106,144,151-170,185,189-190
+src/components/Evaluation/DeveloperEvaluationDashboard.css
+  h_6bfb1d88d0b1fe 1157,1162-1168,2130-2172
+src/components/Evaluation/DeveloperEvaluationDashboard.tsx
+  h_6bfb1d88d0b1fe 768-771
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "633eca003b9dd684f702c3c1175e66e89cb2c4e2",
+  "prompts": {},
+  "humans": {
+    "h_6bfb1d88d0b1fe": {
+      "author": "ShubhamPrajapati1402 <scprajapati14@gmail.com>"
+    }
+  }
+}
