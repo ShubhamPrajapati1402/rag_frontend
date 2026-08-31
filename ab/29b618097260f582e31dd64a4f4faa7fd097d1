@@ -1,0 +1,18 @@
+README.md
+  h_6bfb1d88d0b1fe 7,9,11,19-31,37,41,43,46,48,54,57,59,69-71,102,108,117,119,122-127,130-131,136,138
+src/components/Navigation/Sidebar.css
+  h_6bfb1d88d0b1fe 120-231
+src/components/Navigation/Sidebar.tsx
+  h_6bfb1d88d0b1fe 14-19,145-162
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "ab29b618097260f582e31dd64a4f4faa7fd097d1",
+  "prompts": {},
+  "humans": {
+    "h_6bfb1d88d0b1fe": {
+      "author": "ShubhamPrajapati1402 <scprajapati14@gmail.com>"
+    }
+  }
+}
