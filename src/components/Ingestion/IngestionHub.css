@@ -50,11 +50,18 @@
 
 .ingestion-clean-root .cell-doc-name[data-tooltip]::after {
   left: 0;
-  transform: translate(0, 4px);
+  bottom: calc(100% + 6px);
+  top: auto;
+  transform: translateY(3px);
+  border-radius: 8px;
+  background: var(--bg-surface, #1e1e1e);
+  padding: 6px 10px;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
 .ingestion-clean-root .cell-doc-name[data-tooltip]:hover::after {
-  transform: translate(0, 0);
+  transform: translateY(0);
 }
 
 .ingestion-clean-root .actions-cluster [data-tooltip]::after {
@@ -510,6 +517,10 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.4;
+  padding: 2px 0;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .pill-format {

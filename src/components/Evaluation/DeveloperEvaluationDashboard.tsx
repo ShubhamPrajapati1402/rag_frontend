@@ -22,10 +22,13 @@ import {
   Users,
   UserPlus,
   X,
-  UserCheck
+  UserCheck,
+  Laptop
 } from 'lucide-react';
 import { evaluationService } from '../../services/evaluationService';
 import { EvaluationRun, EvaluationCase, UserProfile } from '../../types';
+import { useDeveloperTeamSocket, DeveloperMember } from '../../hooks/useDeveloperTeamSocket';
+import AcceptInviteModal from './AcceptInviteModal';
 import './DeveloperEvaluationDashboard.css';
 
 interface DeveloperEvaluationDashboardProps {
@@ -50,7 +53,8 @@ export default function DeveloperEvaluationDashboard({
 }: DeveloperEvaluationDashboardProps) {
   const [runs, setRuns] = useState<EvaluationRun[]>([]);
   const [selectedRun, setSelectedRun] = useState<EvaluationRun | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [detailsLoading, setDetailsLoading] = useState<boolean>(false);
   const [isTriggering, setIsTriggering] = useState<boolean>(false);
   const [casesPerDoc, setCasesPerDoc] = useState<number>(2);
@@ -62,11 +66,43 @@ export default function DeveloperEvaluationDashboard({
 
   // Developer Team Modal States
   const [showTeamModal, setShowTeamModal] = useState<boolean>(false);
-  const [developers, setDevelopers] = useState<DeveloperUser[]>([]);
   const [inviteEmail, setInviteEmail] = useState<string>('');
+  const [inviteRole, setInviteRole] = useState<'MEMBER' | 'ADMIN'>('MEMBER');
+  const [isRoleMenuOpen, setIsRoleMenuOpen] = useState<boolean>(false);
   const [teamLoading, setTeamLoading] = useState<boolean>(false);
   const [inviteSubmitting, setInviteSubmitting] = useState<boolean>(false);
-  const [teamMessage, setTeamMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [teamMessage, setTeamMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  const casesMenuRef = useRef<HTMLDivElement | null>(null);
+  const roleMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (casesMenuRef.current && !casesMenuRef.current.contains(event.target as Node)) {
+        setIsCasesMenuOpen(false);
+      }
+      if (roleMenuRef.current && !roleMenuRef.current.contains(event.target as Node)) {
+        setIsRoleMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Real-time WebSocket hook for Developer Team presence and instant sync
+  const { developers, setDevelopers, isConnected: isTeamSocketConnected, refreshTeam } = useDeveloperTeamSocket({
+    userProfile,
+    onDeveloperRevokedSelf: () => {
+      alert('Your developer privileges have been revoked by an administrator.');
+      if (onNavigateToChat) onNavigateToChat();
+    },
+    onEventNotification: (msg, type) => {
+      setTeamMessage({ type: type === 'warning' ? 'error' : type, text: msg });
+    }
+  });
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -108,7 +144,8 @@ export default function DeveloperEvaluationDashboard({
     } catch (err) {
       console.error('Failed to load evaluation runs', err);
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
+      setIsRefreshing(false);
     }
   }, [loadRunDetails]);
 
@@ -165,21 +202,21 @@ export default function DeveloperEvaluationDashboard({
     try {
       setInviteSubmitting(true);
       setTeamMessage(null);
-      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/auth/manage-developer`, {
+      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/auth/invite-developer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email: inviteEmail.trim(), is_developer: true }),
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.detail || 'Failed to grant access');
+        throw new Error(data.detail || 'Failed to send invitation');
       }
       setTeamMessage({ type: 'success', text: data.message });
       setInviteEmail('');
       await loadDevelopers();
     } catch (err: any) {
-      setTeamMessage({ type: 'error', text: err.message || 'Failed to grant access' });
+      setTeamMessage({ type: 'error', text: err.message || 'Failed to send invitation' });
     } finally {
       setInviteSubmitting(false);
     }
@@ -305,7 +342,7 @@ export default function DeveloperEvaluationDashboard({
         <div className="eval-header-actions">
           <div className="cases-selector-box">
             <span className="selector-label">Cases/Doc:</span>
-            <div className="cases-select-menu">
+            <div className="cases-select-menu" ref={casesMenuRef}>
               <button
                 type="button"
                 className="cases-select"
@@ -512,7 +549,7 @@ export default function DeveloperEvaluationDashboard({
                         <button
                           className="delete-run-btn"
                           onClick={(e) => handleDeleteRun(run.id, e)}
-                          data-tooltip={`Delete Run #${run.id}`}
+                          data-tooltip="Delete run"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -737,17 +774,73 @@ export default function DeveloperEvaluationDashboard({
                 required
                 className="team-email-input"
               />
+              <div className="invite-role-select-menu" ref={roleMenuRef}>
+                <button
+                  type="button"
+                  className="invite-role-select"
+                  onClick={() => setIsRoleMenuOpen((open) => !open)}
+                  disabled={inviteSubmitting}
+                  aria-haspopup="listbox"
+                  aria-expanded={isRoleMenuOpen}
+                  title="Assign developer role"
+                >
+                  <div className="invite-role-current">
+                    {inviteRole === 'ADMIN' ? (
+                      <>
+                        <ShieldCheck size={14} className="role-icon-admin" />
+                        <span>Admin</span>
+                      </>
+                    ) : (
+                      <>
+                        <Laptop size={14} className="role-icon-member" />
+                        <span>Member</span>
+                      </>
+                    )}
+                  </div>
+                  <ChevronDown size={14} className="role-chevron" aria-hidden="true" />
+                </button>
+                {isRoleMenuOpen && (
+                  <div className="invite-role-options anim-pop-in" role="listbox">
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={inviteRole === 'MEMBER'}
+                      className={inviteRole === 'MEMBER' ? 'is-selected' : ''}
+                      onClick={() => {
+                        setInviteRole('MEMBER');
+                        setIsRoleMenuOpen(false);
+                      }}
+                    >
+                      <Laptop size={14} className="role-icon-member" />
+                      <span>Member</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={inviteRole === 'ADMIN'}
+                      className={inviteRole === 'ADMIN' ? 'is-selected' : ''}
+                      onClick={() => {
+                        setInviteRole('ADMIN');
+                        setIsRoleMenuOpen(false);
+                      }}
+                    >
+                      <ShieldCheck size={14} className="role-icon-admin" />
+                      <span>Admin</span>
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 type="submit"
                 disabled={inviteSubmitting}
                 className="team-grant-btn"
               >
                 {inviteSubmitting ? (
-                  <span>Granting...</span>
+                  <span>Sending Link...</span>
                 ) : (
                   <>
                     <UserPlus size={14} />
-                    <span>Grant Access</span>
+                    <span>Send Invite</span>
                   </>
                 )}
               </button>
@@ -761,37 +854,76 @@ export default function DeveloperEvaluationDashboard({
 
             {/* Team List */}
             <div className="team-members-container">
-              <span className="team-section-heading">
-                Authorized Developers ({developers.length})
-              </span>
+              <div className="team-section-header-row">
+                <span className="team-section-heading">
+                  Authorized Developers ({developers.length})
+                </span>
+                <span className={`team-sync-badge ${isTeamSocketConnected ? 'connected' : 'syncing'}`}>
+                  <span className="sync-pulse-dot" />
+                  {isTeamSocketConnected ? 'Live Sync Active' : 'Connecting Sync...'}
+                </span>
+              </div>
 
-              {teamLoading ? (
+              {teamLoading && developers.length === 0 ? (
                 <div className="team-loading-state">
                   <div className="eval-spinner-ring" />
                   <span>Loading authorized team...</span>
                 </div>
+              ) : developers.length === 0 ? (
+                <div className="team-loading-state">
+                  <span>No other developers authorized yet.</span>
+                </div>
               ) : (
                 <div className="team-members-list">
-                  {developers.map((dev) => (
-                    <div key={dev.id} className="team-member-item">
-                      <div className="member-avatar">
-                        {dev.email.charAt(0).toUpperCase()}
+                  {developers.map((dev) => {
+                    const isSelf = userProfile?.email && dev.email.toLowerCase() === userProfile.email.toLowerCase();
+                    const presence = dev.presence || 'OFFLINE';
+                    const avatarImg = (isSelf ? (userProfile?.avatarUrl || userProfile?.avatar || userProfile?.picture || userProfile?.image) : null) || dev.avatar_url;
+
+                    return (
+                      <div key={dev.id || dev.email} className="team-member-item">
+                        <div className="member-avatar-wrapper">
+                          <div className="member-avatar">
+                            {avatarImg ? (
+                              <img
+                                src={avatarImg}
+                                alt={dev.full_name || dev.email}
+                                className="member-avatar-img"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              (dev.full_name?.[0] || dev.email.charAt(0)).toUpperCase()
+                            )}
+                          </div>
+                          <span className={`presence-indicator-dot ${presence.toLowerCase()}`} title={`Status: ${presence}`} />
+                        </div>
+                        <div className="member-info">
+                          <span className="member-email">{dev.email}</span>
+                          <span className="member-date">
+                            {dev.full_name || 'Developer'} • Added {dev.created_at ? new Date(dev.created_at).toLocaleDateString() : 'Recently'}
+                          </span>
+                        </div>
+                        <div className="member-right-tags">
+                          {dev.is_primary_owner && <span className="member-owner-tag">Owner</span>}
+                          {isSelf && <span className="member-self-tag">You</span>}
+                          <span className={`member-presence-tag ${presence.toLowerCase()}`}>
+                            {presence === 'ONLINE' ? 'Online' : presence === 'OFFLINE' ? 'Offline' : 'Pre-Authorized'}
+                          </span>
+                          {!isSelf && !dev.is_primary_owner && (
+                            <button
+                              onClick={() => handleRevokeAccess(dev.email)}
+                              className="member-revoke-btn"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="member-info">
-                        <span className="member-email">{dev.email}</span>
-                        <span className="member-date">
-                          {dev.full_name || 'Developer'} • Added {new Date(dev.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => handleRevokeAccess(dev.email)}
-                        className="member-revoke-btn"
-                        data-tooltip={`Revoke developer access for ${dev.email}`}
-                      >
-                        Revoke
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -825,6 +957,8 @@ export default function DeveloperEvaluationDashboard({
           </div>
         </div>
       )}
+      {/* Accept Invite Token Gateway */}
+      <AcceptInviteModal onInviteAccepted={() => fetchRuns(false)} />
     </div>
   );
 }
