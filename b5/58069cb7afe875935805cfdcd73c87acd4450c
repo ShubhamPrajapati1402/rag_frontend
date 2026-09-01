@@ -1,0 +1,34 @@
+README.md
+  h_6bfb1d88d0b1fe 1,3,7,9-17,26,28,40,46,50,52,57,63-65,68,97,110,127,131-134,140-141
+src/App.tsx
+  h_6bfb1d88d0b1fe 10,58-89,114-115,123,128,134,140,183,226,244,268,278,300,318-319,344-347,381-391
+src/components/Chat/ChatStudio.css
+  h_6bfb1d88d0b1fe 1378-1392
+src/components/Chat/ChatStudio.tsx
+  h_6bfb1d88d0b1fe 1,95-98,150-154,169,262,516-518,638,643,669,680,691,711,778,787-792,867,936,955
+src/components/Header/Navbar.tsx
+  h_6bfb1d88d0b1fe 1-2,25,29,36,40,45
+src/components/Models/SimpleModelModal.css
+  h_6bfb1d88d0b1fe 1-273
+src/components/Models/SimpleModelModal.tsx
+  h_6bfb1d88d0b1fe 1-228
+src/components/Navigation/Sidebar.tsx
+  h_6bfb1d88d0b1fe 3,42-43,62-64,378-392,454-472
+src/services/chatApi.ts
+  h_6bfb1d88d0b1fe 8,36,41,50,55,71-75,79,97-100,110,113-117,120,132,136,162,175,177-201,206-208,215,220,222,224,229-230,232,237,240,247,252,258,262-263,279,283-284,292-293,301,306-310,314,321,332,339,406,424,442,465,473,480
+src/services/modelsApi.ts
+  h_6bfb1d88d0b1fe 1-118
+src/types/index.ts
+  h_6bfb1d88d0b1fe 1,34-35,42-43,61-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "b558069cb7afe875935805cfdcd73c87acd4450c",
+  "prompts": {},
+  "humans": {
+    "h_6bfb1d88d0b1fe": {
+      "author": "ShubhamPrajapati1402 <scprajapati14@gmail.com>"
+    }
+  }
+}
