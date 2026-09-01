@@ -1,4 +1,5 @@
-import { ChevronDown, Sun, Moon, MessageSquare, FolderOpen, ShieldCheck } from 'lucide-react';
+import React from 'react';
+import { Sun, Moon, MessageSquare, FolderOpen, ShieldCheck } from 'lucide-react';
 import { ThemeType, UserProfile } from '../../types';
 import './Navbar.css';
 
@@ -21,32 +22,27 @@ export default function Navbar({
 }: NavbarProps) {
   return (
     <header className="chatgpt-top-header">
-      {/* Left: ChatGPT Model Selector Pill */}
+      {/* Left: Navigation Tabs */}
       <div className="header-left">
-        <div className="model-selector-pill">
-          <span className="model-title">Noesis RAG</span>
-          <ChevronDown size={14} className="model-chevron" />
-        </div>
-
         <div className="header-tabs">
           <button 
-            className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
+            className={'tab-btn ' + (activeTab === 'chat' ? 'active' : '')}
             onClick={() => setActiveTab('chat')}
           >
             <MessageSquare size={13} />
             <span>Chat</span>
           </button>
           <button 
-            className={`tab-btn ${activeTab === 'documents' ? 'active' : ''}`}
+            className={'tab-btn ' + (activeTab === 'documents' ? 'active' : '')}
             onClick={() => setActiveTab('documents')}
           >
             <FolderOpen size={13} />
-            <span>Documents ({docCount})</span>
+            <span>Projects ({docCount})</span>
           </button>
 
           {userProfile?.is_superuser && (
             <button 
-              className={`tab-btn dev-tab ${activeTab === 'evaluation' ? 'active' : ''}`}
+              className={'tab-btn dev-tab ' + (activeTab === 'evaluation' ? 'active' : '')}
               onClick={() => setActiveTab('evaluation')}
             >
               <ShieldCheck size={13} className="text-indigo-400" />

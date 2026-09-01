@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
+  Cpu, 
   SquarePen, 
   FolderOpen, 
   Search, 
@@ -38,6 +39,8 @@ interface SidebarProps {
   theme: ThemeType;
   onLogout: () => void;
   userProfile?: UserProfile | null;
+  onOpenModelModal?: () => void;
+  selectedModel?: string;
 }
 
 export default function Sidebar({ 
@@ -56,7 +59,9 @@ export default function Sidebar({
   onToggleTheme,
   theme,
   onLogout,
-  userProfile
+  userProfile,
+  onOpenModelModal,
+  selectedModel = 'inbuilt'
 }: SidebarProps) {
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
   const [sessionToDelete, setSessionToDelete] = useState<ChatSession | null>(null);
@@ -371,6 +376,21 @@ export default function Sidebar({
               <div className="dropdown-divider"></div>
 
               <button 
+                type="button"
+                className="dropdown-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsProfileMenuOpen(false);
+                  if (onOpenModelModal) {
+                    onOpenModelModal();
+                  }
+                }}
+              >
+                <Cpu size={15} className="text-indigo-400" />
+                <span>AI Model & API Key</span>
+              </button>
+
+              <button 
                 className="dropdown-menu-item"
                 onClick={() => {
                   setIsSettingsOpen(true);
@@ -431,6 +451,25 @@ export default function Sidebar({
             </div>
 
             <div className="settings-modal-body">
+              <div className="settings-section-title">AI Model & API Key</div>
+              <div className="settings-row-item">
+                <div>
+                  <div className="settings-label">Active Model</div>
+                  <div className="settings-sublabel">
+                    {selectedModel && selectedModel !== 'inbuilt' ? selectedModel : 'Inbuilt Model (Default Gemini Flash / Groq)'}
+                  </div>
+                </div>
+                <button 
+                  className="settings-toggle-btn" 
+                  onClick={() => {
+                    setIsSettingsOpen(false);
+                    if (onOpenModelModal) onOpenModelModal();
+                  }}
+                >
+                  Change Model
+                </button>
+              </div>
+
               <div className="settings-section-title">Theme & Appearance</div>
               <div className="settings-row-item">
                 <div>

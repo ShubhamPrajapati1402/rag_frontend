@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { 
@@ -92,6 +92,10 @@ interface ChatStudioProps {
   documents?: DocumentItem[];
   onOpenCommandPalette: () => void;
   userProfile?: UserProfile | null;
+  selectedModel?: string;
+  customApiKey?: string;
+  customBaseUrl?: string;
+  onOpenModelModal?: () => void;
 }
 
 // Fast in-memory & localStorage session cache (0ms instant route switching, stale-while-revalidate)
@@ -143,7 +147,11 @@ export default function ChatStudio({
   docCount, 
   documents = [], 
   onOpenCommandPalette,
-  userProfile
+  userProfile,
+  selectedModel = 'inbuilt',
+  customApiKey = '',
+  customBaseUrl = '',
+  onOpenModelModal
 }: ChatStudioProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     return getCachedSessionMessages(currentSessionId) || [];
@@ -158,7 +166,7 @@ export default function ChatStudio({
   const [activeSource, setActiveSource] = useState<SourceCitation | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
 
-  // 360° Interactive Cursor / Touch Rotation Physics
+  // 360Â° Interactive Cursor / Touch Rotation Physics
   const [rotX, setRotX] = useState<number>(0);
   const [rotY, setRotY] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -251,7 +259,7 @@ export default function ChatStudio({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onOpenCommandPalette]);
 
-  // 360° Interactive Rotation Handlers (Mouse & Touch)
+  // 360Â° Interactive Rotation Handlers (Mouse & Touch)
   const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDragging(true);
     const clientX = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
@@ -505,6 +513,9 @@ export default function ChatStudio({
       await chatApi.streamChat({
         question: queryToSend,
         sessionId: activeSession || null,
+        modelName: selectedModel === 'inbuilt' ? undefined : selectedModel,
+        apiKey: customApiKey || undefined,
+        modelProvider: selectedModel === 'inbuilt' ? 'inbuilt' : undefined,
         signal: controller.signal,
         onMetadata: (meta) => {
           if (meta.session_id) {
@@ -624,12 +635,12 @@ export default function ChatStudio({
         ) : messages.length === 0 && !isStreaming ? (
           /* Symmetrical 4-Plane Gyroscopic Solar System */
           <div className="chatgpt-hero-empty anim-fade-in">
-            {/* 3D Multi-Shell Solar Gyroscopic System with 360° Drag & Touch Control */}
+            {/* 3D Multi-Shell Solar Gyroscopic System with 360Â° Drag & Touch Control */}
             <div 
               className={`neural-3d-scene ${isDragging ? 'is-dragging' : ''}`}
               onMouseDown={handlePointerDown}
               onTouchStart={handlePointerDown}
-              data-tooltip="Click and drag with mouse or touch to rotate 360° in 3D"
+              data-tooltip="Click and drag with mouse or touch to rotate 360Â° in 3D"
             >
               {/* Central Volumetric 3D Sphere (Static) */}
               <div className="volumetric-3d-sphere">
@@ -655,7 +666,7 @@ export default function ChatStudio({
                     </div>
                   </div>
 
-                  {/* 2. +45° Tilted Ring */}
+                  {/* 2. +45Â° Tilted Ring */}
                   <div className="gyro-3d-ring gyro-tilt-pos">
                     <div className="planet-revolver rev-pos">
                       <div className="orbit-planet">
@@ -666,7 +677,7 @@ export default function ChatStudio({
                     </div>
                   </div>
 
-                  {/* 3. -45° Tilted Ring */}
+                  {/* 3. -45Â° Tilted Ring */}
                   <div className="gyro-3d-ring gyro-tilt-neg">
                     <div className="planet-revolver rev-neg">
                       <div className="orbit-planet">
@@ -677,7 +688,7 @@ export default function ChatStudio({
                     </div>
                   </div>
 
-                  {/* 4. 90° Polar Ring */}
+                  {/* 4. 90Â° Polar Ring */}
                   <div className="gyro-3d-ring gyro-polar-90">
                     <div className="planet-revolver rev-polar">
                       <div className="orbit-planet">
@@ -697,7 +708,7 @@ export default function ChatStudio({
             <div className="hero-greeting-container anim-slide-up">
               <h1 className="chatgpt-hero-prompt">What can I help with?</h1>
               <span className="hero-salutation-text">
-                {greetingInfo.timeGreeting}, {greetingInfo.displayName} • Select a prompt below or ask anything
+                {greetingInfo.timeGreeting}, {greetingInfo.displayName} â€¢ Select a prompt below or ask anything
               </span>
             </div>
 
@@ -764,7 +775,7 @@ export default function ChatStudio({
                           <span className="source-num-badge">{sIdx + 1}</span>
                           <FileText size={11} className="source-file-icon" />
                           <span className="source-name-text">{src.fileName}</span>
-                          {src.page && <span className="source-page-text">• {src.page}</span>}
+                          {src.page && <span className="source-page-text">â€¢ {src.page}</span>}
                         </button>
                       ))}
                     </div>
@@ -773,6 +784,12 @@ export default function ChatStudio({
                   {/* Action Icons */}
                   <div className="ai-actions-row">
                     <span className="msg-timestamp">{formatISTDateTime(msg.createdAt)}</span>
+                    {(msg.modelName || msg.modelProvider) && (
+                      <span className="msg-model-badge" title={`Synthesized by ${msg.modelName || msg.modelProvider}`}>
+                        <Sparkles size={11} className="inline mr-1 text-indigo-400" />
+                        {msg.modelName || msg.modelProvider}
+                      </span>
+                    )}
                     <button 
                       className={`action-icon-btn ${copiedId === msg.id ? 'is-copied' : ''}`} 
                       onClick={() => copyText(msg.content, msg.id)}
@@ -847,7 +864,7 @@ export default function ChatStudio({
                       <span className="source-num-badge">{sIdx + 1}</span>
                       <FileText size={11} className="source-file-icon" />
                       <span className="source-name-text">{src.fileName}</span>
-                      {src.page && <span className="source-page-text">• {src.page}</span>}
+                      {src.page && <span className="source-page-text">â€¢ {src.page}</span>}
                     </button>
                   ))}
                 </div>
@@ -916,7 +933,7 @@ export default function ChatStudio({
                 <div>
                   <h4>{activeSource.fileName}</h4>
                   <span className="drawer-loc">
-                    {activeSource.page || activeSource.sheet || 'Reference Document'} {activeSource.similarity ? `• ${activeSource.similarity}` : ''}
+                    {activeSource.page || activeSource.sheet || 'Reference Document'} {activeSource.similarity ? `â€¢ ${activeSource.similarity}` : ''}
                   </span>
                 </div>
               </div>
@@ -935,3 +952,4 @@ export default function ChatStudio({
     </div>
   );
 }
+

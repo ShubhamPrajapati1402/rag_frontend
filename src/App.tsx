@@ -7,6 +7,7 @@ import DeveloperEvaluationDashboard from './components/Evaluation/DeveloperEvalu
 import AuthModal from './components/Auth/AuthModal';
 import AcceptInviteModal from './components/Evaluation/AcceptInviteModal';
 import CommandPalette from './components/CommandPalette/CommandPalette';
+import SimpleModelModal from './components/Models/SimpleModelModal';
 import { chatApi } from './services/chatApi';
 import { authApi } from './services/authApi';
 import { DocumentItem, ChatSession, ThemeType, UserProfile } from './types';
@@ -54,6 +55,38 @@ function App() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>(getSessionIdFromPath);
 
+  // Simple Model & Key state
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    return localStorage.getItem('noesis_model_name') || 'inbuilt';
+  });
+  const [customApiKey, setCustomApiKey] = useState<string>(() => {
+    return localStorage.getItem('noesis_api_key') || '';
+  });
+  const [customBaseUrl, setCustomBaseUrl] = useState<string>(() => {
+    return localStorage.getItem('noesis_base_url') || '';
+  });
+  const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
+
+  const handleSaveModel = (modelName: string, apiKey: string, baseUrl?: string) => {
+    setSelectedModel(modelName);
+    setCustomApiKey(apiKey);
+    setCustomBaseUrl(baseUrl || '');
+    localStorage.setItem('noesis_model_name', modelName);
+    if (apiKey) localStorage.setItem('noesis_api_key', apiKey);
+    else localStorage.removeItem('noesis_api_key');
+    if (baseUrl) localStorage.setItem('noesis_base_url', baseUrl);
+    else localStorage.removeItem('noesis_base_url');
+  };
+
+  const handleResetToInbuilt = () => {
+    setSelectedModel('inbuilt');
+    setCustomApiKey('');
+    setCustomBaseUrl('');
+    localStorage.removeItem('noesis_model_name');
+    localStorage.removeItem('noesis_api_key');
+    localStorage.removeItem('noesis_base_url');
+  };
+
   const loadSessions = useCallback(async () => {
     try {
       const sessions = await chatApi.getSessions();
@@ -72,15 +105,14 @@ function App() {
     }
   }, []);
 
-  // Listen to browser Back / Forward popstate events for /c/:sessionId and /developer/evaluation routing
   useEffect(() => {
     const handlePopState = () => {
       if (window.location.pathname.startsWith('/developer/evaluation') || window.location.pathname.startsWith('/evaluation')) {
         setActiveTab('evaluation');
         return;
       }
-      const pathSessionId = getSessionIdFromPath();
-      setCurrentSessionId(pathSessionId);
+      const sid = getSessionIdFromPath();
+      setCurrentSessionId(sid);
       setActiveTab('chat');
     };
     window.addEventListener('popstate', handlePopState);
@@ -88,46 +120,25 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const verifySession = async () => {
-      // Scale Optimization: Check non-HttpOnly companion cookie 'rag_logged_in=1'
-      // Guest visitors will have no cookie, skipping /auth/me network calls entirely (0 server load)
-      const hasSessionCookie = document.cookie
-        .split('; ')
-        .some(cookie => cookie.startsWith('rag_logged_in=1'));
-
-      if (!hasSessionCookie) {
-        setIsAuthenticated(false);
-        setUserProfile(null);
-        setIsAuthChecking(false);
-        return;
-      }
-
+    const initAuth = async () => {
       try {
         const user = await authApi.getMe();
         if (user) {
-          setIsAuthenticated(true);
           setUserProfile(user);
+          setIsAuthenticated(true);
           loadSessions();
           loadDocuments();
         } else {
           setIsAuthenticated(false);
-          setUserProfile(null);
         }
-      } catch {
+      } catch (err) {
         setIsAuthenticated(false);
-        setUserProfile(null);
       } finally {
         setIsAuthChecking(false);
       }
     };
-    verifySession();
+    initAuth();
   }, [loadSessions, loadDocuments]);
-
-  useEffect(() => {
-    if (isAuthenticated && activeTab === 'documents') {
-      loadDocuments();
-    }
-  }, [activeTab, isAuthenticated, loadDocuments]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -169,7 +180,7 @@ function App() {
       window.history.pushState(null, '', '/');
     } else {
       if (currentSessionId) {
-        window.history.pushState(null, '', `/c/${currentSessionId}`);
+        window.history.pushState(null, '', '/c/' + currentSessionId);
       } else {
         window.history.pushState(null, '', '/');
       }
@@ -212,7 +223,7 @@ function App() {
   const handleSelectSession = (id: string) => {
     setCurrentSessionId(id);
     setActiveTab('chat');
-    window.history.pushState(null, '', id ? `/c/${id}` : '/');
+    window.history.pushState(null, '', id ? ('/c/' + id) : '/');
   };
 
   const handleNewSession = () => {
@@ -230,7 +241,7 @@ function App() {
       return [{ id: newSession.id, title: newSession.title || 'New Conversation' }, ...prev];
     });
     setCurrentSessionId(newSession.id);
-    window.history.pushState(null, '', `/c/${newSession.id}`);
+    window.history.pushState(null, '', '/c/' + newSession.id);
   }, []);
 
   const handleSessionTitleUpdated = useCallback((sessionId: string, title: string) => {
@@ -254,7 +265,7 @@ function App() {
 
   if (isAuthChecking) {
     return (
-      <div className={`app-root ${theme}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <div className={'app-root ' + theme} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
           <div style={{ width: '32px', height: '32px', border: '3px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spinRing 0.8s linear infinite' }} />
           <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Verifying session...</span>
@@ -264,7 +275,7 @@ function App() {
   }
 
   return (
-    <div className={`app-root ${theme}`}>
+    <div className={'app-root ' + theme}>
       {!isAuthenticated && (
         <AuthModal onLogin={handleLogin} />
       )}
@@ -286,7 +297,7 @@ function App() {
         }}
       />
 
-      <div className={`app-workspace-container ${!isAuthenticated ? 'workspace-inert' : ''}`}>
+      <div className={'app-workspace-container ' + (!isAuthenticated ? 'workspace-inert' : '')}>
         <Sidebar 
           chatSessions={chatSessions}
           currentSessionId={currentSessionId}
@@ -304,6 +315,8 @@ function App() {
           onToggleTheme={handleToggleTheme}
           onLogout={handleLogout}
           userProfile={userProfile}
+          selectedModel={selectedModel}
+          onOpenModelModal={() => setIsModelModalOpen(true)}
         />
 
         <main className="app-main-viewport">
@@ -328,6 +341,10 @@ function App() {
                 documents={documents}
                 onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
                 userProfile={userProfile}
+                selectedModel={selectedModel}
+                customApiKey={customApiKey}
+                customBaseUrl={customBaseUrl}
+                onOpenModelModal={() => setIsModelModalOpen(true)}
               />
             ) : activeTab === 'documents' ? (
               <IngestionHub 
@@ -360,6 +377,17 @@ function App() {
           handleTabSwitch('documents');
           setIsCommandPaletteOpen(false);
         }}
+      />
+
+      {/* Simple Model Name & API Key Modal */}
+      <SimpleModelModal
+        isOpen={isModelModalOpen}
+        onClose={() => setIsModelModalOpen(false)}
+        selectedModel={selectedModel}
+        apiKey={customApiKey}
+        baseUrl={customBaseUrl}
+        onSave={handleSaveModel}
+        onResetToInbuilt={handleResetToInbuilt}
       />
     </div>
   );

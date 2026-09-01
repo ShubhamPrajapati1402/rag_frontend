@@ -1,4 +1,4 @@
-export type ThemeType = 'light' | 'dark';
+﻿export type ThemeType = 'light' | 'dark';
 
 export interface DocumentItem {
   id: string;
@@ -31,12 +31,16 @@ export interface ChatMessage {
   content: string;
   sources?: SourceCitation[];
   nodeStatus?: string;
+  modelProvider?: string;
+  modelName?: string;
   createdAt?: string;
 }
 
 export interface ChatSession {
   id: string;
   title: string;
+  model_provider?: string;
+  model_name?: string;
   message_count?: number;
   created_at?: string;
   updated_at?: string;
@@ -52,6 +56,53 @@ export interface UserProfile {
   avatar?: string;
   picture?: string;
   image?: string;
+}
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  provider: string;
+  description: string;
+  context_window: number;
+  is_inbuilt: boolean;
+  requires_api_key: boolean;
+  is_configured: boolean;
+  default_base_url?: string | null;
+}
+
+export interface ProviderInfo {
+  provider: string;
+  name: string;
+  description: string;
+  website_url: string;
+  api_key_help_url: string;
+  default_base_url?: string | null;
+  is_inbuilt: boolean;
+  is_configured: boolean;
+  models: ModelInfo[];
+}
+
+export interface ModelsCatalogResponse {
+  providers: ProviderInfo[];
+  default_model: string;
+  default_provider: string;
+}
+
+export interface UserAPIKey {
+  id: number;
+  provider: string;
+  key_hint: string;
+  base_url?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TestConnectionResponse {
+  success: boolean;
+  message: string;
+  latency_ms: number;
+  model_tested?: string | null;
 }
 
 export interface EvaluationClaim {

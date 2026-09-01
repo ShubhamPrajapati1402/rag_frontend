@@ -5,7 +5,7 @@ export const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 export function normalizeCitation(item: any, idx: number): SourceCitation {
   if (typeof item === 'string') {
     return {
-      id: `src-${idx}-${Date.now()}`,
+      id: 'src-' + idx + '-' + Date.now(),
       fileName: 'Document Source',
       fileType: 'PDF',
       text: item,
@@ -33,12 +33,12 @@ export function normalizeCitation(item: any, idx: number): SourceCitation {
     )
   );
   if (page && !page.toLowerCase().startsWith('page')) {
-    page = `Page ${page}`;
+    page = 'Page ' + page;
   }
 
   let sheet = item.sheet_name || item.sheet || item.sheetName || '';
   if (sheet && !String(sheet).toLowerCase().startsWith('sheet')) {
-    sheet = `Sheet: ${sheet}`;
+    sheet = 'Sheet: ' + sheet;
   }
 
   let similarity = '';
@@ -47,12 +47,12 @@ export function normalizeCitation(item: any, idx: number): SourceCitation {
   } else if (item.score !== undefined && item.score !== null) {
     const num = Number(item.score);
     if (!isNaN(num)) {
-      similarity = num <= 1 ? `${Math.round(num * 100)}% match` : `${Math.round(num)}% match`;
+      similarity = num <= 1 ? (Math.round(num * 100) + '% match') : (Math.round(num) + '% match');
     }
   }
 
   return {
-    id: item.id || item.doc_id || item.document_id || `src-${idx}-${Date.now()}`,
+    id: item.id || item.doc_id || item.document_id || ('src-' + idx + '-' + Date.now()),
     fileName,
     fileType,
     page: page || (sheet ? sheet : undefined),
@@ -68,11 +68,15 @@ export interface StreamChatOptions {
   question: string;
   sessionId?: string | null;
   documentIds?: string[] | null;
-  onMetadata?: (meta: { session_id?: string; title?: string }) => void;
+  modelProvider?: string;
+  modelName?: string;
+  apiKey?: string;
+  temperature?: number;
+  onMetadata?: (meta: { session_id?: string; title?: string; model_provider?: string; model_name?: string }) => void;
   onNodeStatus?: (status: { node: string; message?: string; thought?: string; detail?: any }) => void;
   onToken?: (token: string) => void;
   onCitations?: (citations: SourceCitation[]) => void;
-  onDone?: (data?: { session_id?: string; title?: string }) => void;
+  onDone?: (data?: { session_id?: string; title?: string; model_provider?: string; model_name?: string }) => void;
   onError?: (err: Error) => void;
   signal?: AbortSignal;
 }
@@ -90,6 +94,10 @@ export const chatApi = {
     question,
     sessionId,
     documentIds = null,
+    modelProvider = 'inbuilt',
+    modelName,
+    apiKey,
+    temperature = 0.3,
     onMetadata,
     onNodeStatus,
     onToken,
@@ -99,17 +107,17 @@ export const chatApi = {
     signal
   }: StreamChatOptions): Promise<void> => {
     try {
-      const payload: {
-        question: string;
-        session_id: string | null;
-        document_ids: string[] | null;
-      } = {
+      const payload: Record<string, any> = {
         question,
         session_id: sessionId && sessionId.trim() !== '' ? sessionId : null,
-        document_ids: documentIds
+        document_ids: documentIds,
+        model_provider: modelProvider,
+        model_name: modelName || undefined,
+        api_key: apiKey || undefined,
+        temperature
       };
 
-      const response = await fetch(`${BACKEND_BASE_URL}/api/v1/chat/stream`, {
+      const response = await fetch(BACKEND_BASE_URL + '/api/v1/chat/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,13 +129,11 @@ export const chatApi = {
       });
 
       if (!response.ok) {
-        let errMessage = `Chat request failed (${response.status})`;
+        let errMessage = 'Chat request failed (' + response.status + ')';
         try {
           const errData = await response.json();
           errMessage = errData.detail || errData.message || errMessage;
-        } catch {
-          // Non-JSON response fallback
-        }
+        } catch {}
         throw new Error(errMessage);
       }
 
@@ -144,10 +150,7 @@ export const chatApi = {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-
-        // Split by standard SSE double-newline boundary
         const blocks = buffer.split(/\r?\n\r?\n/);
-        // Keep the last incomplete piece in the buffer
         buffer = blocks.pop() || '';
 
         for (const block of blocks) {
@@ -155,8 +158,8 @@ export const chatApi = {
 
           let eventName = 'message';
           const dataLines: string[] = [];
-
           const lines = block.split(/\r?\n/);
+
           for (const line of lines) {
             if (line.startsWith('event:')) {
               eventName = line.replace(/^event:\s*/, '').trim();
@@ -169,228 +172,95 @@ export const chatApi = {
           let parsedData: any = rawData;
           try {
             parsedData = JSON.parse(rawData);
-          } catch {
-            // Raw text or token string
-          }
+          } catch {}
 
-          switch (eventName) {
-            case 'metadata':
-              if (onMetadata) {
-                const meta = typeof parsedData === 'object' && parsedData !== null ? parsedData : {};
-                onMetadata(meta);
-              }
-              break;
-
-            case 'trace':
-            case 'node_status':
-              if (onNodeStatus) {
-                if (typeof parsedData === 'string') {
-                  onNodeStatus({ node: 'trace', message: parsedData, thought: parsedData });
-                } else if (typeof parsedData === 'object' && parsedData !== null) {
-                  const nodeName = parsedData.step || parsedData.node || parsedData.name || parsedData.status || 'trace';
-                  const thoughtText = parsedData.thought || parsedData.message || parsedData.thought_process;
-                  onNodeStatus({
-                    node: nodeName,
-                    message: thoughtText || parsedData.message,
-                    thought: thoughtText,
-                    detail: parsedData
-                  });
-                }
-              }
-              break;
-
-            case 'token':
-              if (onToken) {
-                let tokenStr = '';
-                if (typeof parsedData === 'string') {
-                  tokenStr = parsedData;
-                } else if (parsedData && typeof parsedData.text === 'string') {
-                  tokenStr = parsedData.text;
-                } else if (parsedData && typeof parsedData.token === 'string') {
-                  tokenStr = parsedData.token;
-                } else if (parsedData && typeof parsedData.content === 'string') {
-                  tokenStr = parsedData.content;
-                }
-                if (tokenStr) onToken(tokenStr);
-              }
-              break;
-
-            case 'citations':
-              if (onCitations) {
-                let citationArray: any[] = [];
-                if (Array.isArray(parsedData)) {
-                  citationArray = parsedData;
-                } else if (parsedData && Array.isArray(parsedData.citations)) {
-                  citationArray = parsedData.citations;
-                } else if (parsedData && Array.isArray(parsedData.sources)) {
-                  citationArray = parsedData.sources;
-                } else if (parsedData && typeof parsedData === 'object') {
-                  citationArray = [parsedData];
-                }
-                const normalized = citationArray.map((c, idx) => normalizeCitation(c, idx));
-                onCitations(normalized);
-              }
-              break;
-
-            case 'done':
-              if (onDone) {
-                onDone(typeof parsedData === 'object' && parsedData !== null ? parsedData : undefined);
-              }
-              try {
-                await reader.cancel();
-              } catch {}
-              return;
-
-            case 'error':
-              const errMsg = typeof parsedData === 'object' && parsedData?.detail 
-                ? parsedData.detail 
-                : (typeof parsedData === 'string' ? parsedData : 'Error streaming response');
-              throw new Error(errMsg);
-
-            default:
-              // Generic fallback
-              if (parsedData?.text && onToken) {
-                onToken(parsedData.text);
-              } else if (parsedData?.token && onToken) {
-                onToken(parsedData.token);
-              }
-              break;
+          if (eventName === 'metadata' && onMetadata) {
+            onMetadata(parsedData);
+          } else if (eventName === 'trace' || eventName === 'node_status') {
+            if (onNodeStatus) {
+              onNodeStatus({
+                node: parsedData.step || parsedData.node || 'processing',
+                message: parsedData.thought || parsedData.status || '',
+                thought: parsedData.thought,
+                detail: parsedData
+              });
+            }
+          } else if (eventName === 'token') {
+            const token = typeof parsedData === 'object' ? (parsedData.text || '') : String(parsedData || '');
+            if (onToken && token) {
+              onToken(token);
+            }
+          } else if (eventName === 'citations' && onCitations) {
+            const rawList = Array.isArray(parsedData.citations) ? parsedData.citations : (Array.isArray(parsedData) ? parsedData : []);
+            const citations = rawList.map((c: any, cIdx: number) => normalizeCitation(c, cIdx));
+            onCitations(citations);
+          } else if (eventName === 'done') {
+            if (onDone) onDone(parsedData);
+          } else if (eventName === 'error') {
+            const errMsg = typeof parsedData === 'object' ? (parsedData.error || parsedData.message || 'Stream error') : String(parsedData);
+            if (onError) onError(new Error(errMsg));
           }
         }
-      }
-
-      // Handle any trailing buffer chunk
-      if (buffer.trim()) {
-        const lines = buffer.split(/\r?\n/);
-        let eventName = 'message';
-        const dataLines: string[] = [];
-        for (const line of lines) {
-          if (line.startsWith('event:')) {
-            eventName = line.replace(/^event:\s*/, '').trim();
-          } else if (line.startsWith('data:')) {
-            dataLines.push(line.replace(/^data:\s*/, ''));
-          }
-        }
-        const rawData = dataLines.join('\n');
-        if ((eventName === 'token' || eventName === 'message') && onToken && rawData) {
-          try {
-            const parsed = JSON.parse(rawData);
-            onToken(parsed.text || parsed.token || rawData);
-          } catch {
-            onToken(rawData);
-          }
-        } else if (eventName === 'done' && onDone) {
-          try {
-            onDone(JSON.parse(rawData));
-          } catch {
-            onDone();
-          }
-        }
-      }
-
-      if (onDone) {
-        onDone();
       }
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        return;
-      }
-      if (onError) {
-        onError(err);
-      } else {
-        console.error('SSE Chat Stream Error:', err);
-      }
+      if (err.name === 'AbortError') return;
+      if (onError) onError(err);
+      else throw err;
     }
   },
 
   // 2. Fetch all user conversation sessions
   getSessions: async (): Promise<ChatSession[]> => {
     try {
-      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/chat/sessions`, {
+      const res = await fetch(BACKEND_BASE_URL + '/api/v1/chat/sessions', {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
         credentials: 'include'
       });
-
-      if (!res.ok) {
-        if (res.status === 401) return [];
-        throw new Error(`Failed to load sessions (${res.status})`);
-      }
-
+      if (!res.ok) return [];
       const data = await res.json();
-      const sessionsList = Array.isArray(data) 
-        ? data 
-        : (data.sessions && Array.isArray(data.sessions) ? data.sessions : []);
-
-      return sessionsList.map((s: any) => ({
-        id: s.id || s.session_id,
-        title: s.title || 'Untitled Conversation',
-        message_count: s.message_count ?? s.messages_count ?? s.messages?.length ?? 0,
-        created_at: s.created_at,
-        updated_at: s.updated_at
-      }));
+      return Array.isArray(data) ? data : (data?.sessions || []);
     } catch (err) {
-      console.warn('Could not fetch chat sessions:', err);
+      console.warn('Failed to load chat sessions:', err);
       return [];
     }
   },
 
-  // 3. Fetch single session history (messages and citations)
-  getSession: async (sessionId: string): Promise<{ session: ChatSession; messages: ChatMessage[] } | null> => {
+  // 3. Load full message history for a specific session
+  getSessionMessages: async (sessionId: string): Promise<{ session: ChatSession; messages: ChatMessage[] } | null> => {
     try {
-      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/chat/sessions/${sessionId}`, {
+      const res = await fetch(BACKEND_BASE_URL + '/api/v1/chat/sessions/' + sessionId, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
         credentials: 'include'
       });
-
-      if (!res.ok) {
-        console.warn(`GET /api/v1/chat/sessions/${sessionId} returned status ${res.status}`);
-        return null;
-      }
-
+      if (!res.ok) return null;
       const data = await res.json();
 
-      let rawMessages: any[] = [];
-      if (Array.isArray(data)) {
-        rawMessages = data;
-      } else if (Array.isArray(data.messages)) {
-        rawMessages = data.messages;
-      } else if (Array.isArray(data.history)) {
-        rawMessages = data.history;
-      } else if (Array.isArray(data.chat_history)) {
-        rawMessages = data.chat_history;
-      } else if (Array.isArray(data.items)) {
-        rawMessages = data.items;
-      } else if (data.data && Array.isArray(data.data.messages)) {
-        rawMessages = data.data.messages;
-      } else if (data.data && Array.isArray(data.data)) {
-        rawMessages = data.data;
-      }
-
+      const rawMessages = data.messages || [];
       const formattedMessages: ChatMessage[] = [];
 
       for (let idx = 0; idx < rawMessages.length; idx++) {
         const m = rawMessages[idx];
-        if (!m) continue;
-
-        // If backend stores query & response as a pair in a single object
         if (m.query && m.response) {
           formattedMessages.push({
-            id: m.id ? `${m.id}-user` : `msg-${idx}-user`,
+            id: m.id ? (m.id + '-user') : ('msg-' + idx + '-user'),
             type: 'user',
             content: m.query,
             createdAt: m.created_at || m.timestamp
           });
+
           const rawCitations = m.citations || m.sources || [];
           const sources = Array.isArray(rawCitations) 
             ? rawCitations.map((c: any, cIdx: number) => normalizeCitation(c, cIdx))
             : [];
           formattedMessages.push({
-            id: m.id ? `${m.id}-ai` : `msg-${idx}-ai`,
+            id: m.id ? (m.id + '-ai') : ('msg-' + idx + '-ai'),
             type: 'ai',
             content: m.response,
             sources: sources.length > 0 ? sources : undefined,
+            modelProvider: m.model_provider,
+            modelName: m.model_name,
             createdAt: m.created_at || m.timestamp
           });
           continue;
@@ -406,10 +276,12 @@ export const chatApi = {
         const content = m.content || m.text || m.message || m.body || m.answer || m.response || '';
 
         formattedMessages.push({
-          id: m.id || m._id || `msg-${idx}-${Date.now()}`,
+          id: m.id || m._id || ('msg-' + idx + '-' + Date.now()),
           type: isUser ? 'user' : 'ai',
           content,
           sources: sources.length > 0 ? sources : undefined,
+          modelProvider: m.model_provider,
+          modelName: m.model_name,
           createdAt: m.created_at || m.timestamp
         });
       }
@@ -417,6 +289,8 @@ export const chatApi = {
       const session: ChatSession = {
         id: data.id || data.session_id || sessionId,
         title: data.title || 'Conversation',
+        model_provider: data.model_provider,
+        model_name: data.model_name,
         message_count: formattedMessages.length,
         created_at: data.created_at,
         updated_at: data.updated_at
@@ -424,22 +298,27 @@ export const chatApi = {
 
       return { session, messages: formattedMessages };
     } catch (err) {
-      console.warn(`Could not fetch session ${sessionId}:`, err);
+      console.warn('Could not fetch session ' + sessionId + ':', err);
       return null;
     }
+  },
+
+    // Alias for getSessionMessages
+  getSession: async (sessionId: string): Promise<{ session: ChatSession; messages: ChatMessage[] } | null> => {
+    return await chatApi.getSessionMessages(sessionId);
   },
 
   // 4. Delete a conversation session
   deleteSession: async (sessionId: string): Promise<boolean> => {
     try {
-      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/chat/sessions/${sessionId}`, {
+      const res = await fetch(BACKEND_BASE_URL + '/api/v1/chat/sessions/' + sessionId, {
         method: 'DELETE',
         headers: { 'Accept': 'application/json' },
         credentials: 'include'
       });
       return res.ok;
     } catch (err) {
-      console.warn(`Failed to delete session ${sessionId}:`, err);
+      console.warn('Failed to delete session ' + sessionId + ':', err);
       return false;
     }
   },
@@ -450,14 +329,14 @@ export const chatApi = {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${BACKEND_BASE_URL}/api/v1/ingest/stream`, {
+      const response = await fetch(BACKEND_BASE_URL + '/api/v1/ingest/stream', {
         method: 'POST',
         credentials: 'include',
         body: formData
       });
 
       if (!response.ok) {
-        let errMessage = `Upload failed (${response.status})`;
+        let errMessage = 'Upload failed (' + response.status + ')';
         try {
           const errData = await response.json();
           errMessage = errData.detail || errData.message || errMessage;
@@ -524,7 +403,7 @@ export const chatApi = {
   // 6. Get list of ingested documents
   getDocuments: async (): Promise<DocumentItem[]> => {
     try {
-      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/ingest/documents`, {
+      const res = await fetch(BACKEND_BASE_URL + '/api/v1/ingest/documents', {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
         credentials: 'include'
@@ -542,7 +421,7 @@ export const chatApi = {
           id: String(d.id || d.doc_id || ''),
           name: String(d.filename || d.name || d.file_name || 'Document'),
           format: String(fmt || 'TXT'),
-          size: String(d.size || (d.chunk_count ? `${d.chunk_count} chunks` : '')),
+          size: String(d.size || (d.chunk_count ? (d.chunk_count + ' chunks') : '')),
           status: (d.status === 'ready' || d.status === 'processing' || d.status === 'error' || d.status === 'COMPLETED') 
             ? (d.status === 'COMPLETED' ? 'ready' : d.status) 
             : 'ready',
@@ -560,7 +439,7 @@ export const chatApi = {
   // 7. Get full document content preview
   getDocumentPreview: async (documentId: string | number): Promise<DocumentItem | null> => {
     try {
-      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/ingest/documents/${documentId}/preview`, {
+      const res = await fetch(BACKEND_BASE_URL + '/api/v1/ingest/documents/' + documentId + '/preview', {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
         credentials: 'include'
@@ -583,7 +462,7 @@ export const chatApi = {
         previewText: d.extracted_preview || d.previewText || d.preview || ''
       };
     } catch (err) {
-      console.warn(`Failed to fetch preview for doc ${documentId}:`, err);
+      console.warn('Failed to fetch preview for doc ' + documentId + ':', err);
       return null;
     }
   },
@@ -591,14 +470,14 @@ export const chatApi = {
   // 8. Delete an ingested document
   deleteDocument: async (docId: string): Promise<boolean> => {
     try {
-      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/ingest/documents/${docId}`, {
+      const res = await fetch(BACKEND_BASE_URL + '/api/v1/ingest/documents/' + docId, {
         method: 'DELETE',
         headers: { 'Accept': 'application/json' },
         credentials: 'include'
       });
       return res.ok;
     } catch (err) {
-      console.warn(`Failed to delete document ${docId}:`, err);
+      console.warn('Failed to delete document ' + docId + ':', err);
       return false;
     }
   }
