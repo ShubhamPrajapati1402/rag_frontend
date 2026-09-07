@@ -185,6 +185,7 @@ export default function ChatStudio({
   });
   const [availableVoices, setAvailableVoices] = useState<VoiceProfile[]>([]);
   const [showVoiceMenu, setShowVoiceMenu] = useState<boolean>(false);
+  const [loadingAudioMsgId, setLoadingAudioMsgId] = useState<string | number | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -198,9 +199,9 @@ export default function ChatStudio({
 
   useEffect(() => {
     return () => {
-      voiceApi.stopSpeech();
       if (activeAudioRef.current) {
         activeAudioRef.current.pause();
+        activeAudioRef.current.src = '';
         activeAudioRef.current = null;
       }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -264,64 +265,69 @@ export default function ChatStudio({
   };
 
   const handleToggleSpeak = (msgId: string | number, text: string) => {
-    // If already playing this message, stop and reset immediately
-    if (playingMessageId === msgId) {
-      voiceApi.stopSpeech();
+    // If currently playing or loading this message, stop and cancel immediately
+    if (playingMessageId === msgId || loadingAudioMsgId === msgId) {
       if (activeAudioRef.current) {
         activeAudioRef.current.pause();
+        activeAudioRef.current.src = '';
         activeAudioRef.current = null;
       }
       setPlayingMessageId(null);
+      setLoadingAudioMsgId(null);
       return;
     }
 
-    // Stop any currently active speech / audio playback
-    voiceApi.stopSpeech();
+    // Stop any previously playing audio
     if (activeAudioRef.current) {
       activeAudioRef.current.pause();
+      activeAudioRef.current.src = '';
       activeAudioRef.current = null;
     }
 
-    setPlayingMessageId(msgId);
+    setLoadingAudioMsgId(msgId);
+    setPlayingMessageId(null);
 
-    // Instant (<15ms) neural speech synthesis via Web Speech API with Edge-TTS voice mapping
     try {
-      voiceApi.speakInstant(
-        text,
-        selectedVoice,
-        playbackSpeed,
-        () => {
-          setPlayingMessageId(null);
-        },
-        (err) => {
-          console.warn('Instant Web Speech API fallback to backend Edge-TTS stream:', err);
-          // Seamless fallback to Edge-TTS backend streaming
-          try {
-            const streamUrl = voiceApi.getStreamUrl(text, selectedVoice);
-            const audio = new Audio(streamUrl);
-            audio.playbackRate = playbackSpeed;
-            activeAudioRef.current = audio;
+      // Direct stream URL connects to FastAPI Edge-TTS stream with LRU audio caching
+      const streamUrl = voiceApi.getStreamUrl(text, selectedVoice);
+      const audio = new Audio(streamUrl);
+      audio.playbackRate = playbackSpeed;
+      audio.preload = 'auto';
 
-            audio.onended = () => {
-              setPlayingMessageId(null);
-              activeAudioRef.current = null;
-            };
-            audio.onerror = () => {
-              setPlayingMessageId(null);
-              activeAudioRef.current = null;
-            };
-            audio.play().catch(() => {
-              setPlayingMessageId(null);
-              activeAudioRef.current = null;
-            });
-          } catch {
-            setPlayingMessageId(null);
-          }
-        }
-      );
+      audio.onplay = () => {
+        setLoadingAudioMsgId(null);
+        setPlayingMessageId(msgId);
+      };
+
+      audio.onplaying = () => {
+        setLoadingAudioMsgId(null);
+        setPlayingMessageId(msgId);
+      };
+
+      audio.onended = () => {
+        setPlayingMessageId(null);
+        setLoadingAudioMsgId(null);
+        activeAudioRef.current = null;
+      };
+
+      audio.onerror = (e) => {
+        console.error('Edge-TTS playback error:', e);
+        setPlayingMessageId(null);
+        setLoadingAudioMsgId(null);
+        activeAudioRef.current = null;
+      };
+
+      activeAudioRef.current = audio;
+      audio.play().catch((err) => {
+        console.error('Audio play invocation error:', err);
+        setPlayingMessageId(null);
+        setLoadingAudioMsgId(null);
+        activeAudioRef.current = null;
+      });
     } catch (err) {
-      console.error('TTS speech playback failed:', err);
+      console.error('TTS stream initialization failed:', err);
       setPlayingMessageId(null);
+      setLoadingAudioMsgId(null);
     }
   };
 
@@ -1045,11 +1051,13 @@ export default function ChatStudio({
                     </button>
                     {/* TTS Voice Speaker / Pause Button */}
                     <button 
-                      className={`action-icon-btn voice-tts-btn ${playingMessageId === msg.id ? 'is-speaking' : ''}`}
+                      className={`action-icon-btn voice-tts-btn ${playingMessageId === msg.id ? 'is-speaking' : ''} ${loadingAudioMsgId === msg.id ? 'is-loading' : ''}`}
                       onClick={() => handleToggleSpeak(msg.id, msg.content)}
-                      data-tooltip={playingMessageId === msg.id ? 'Pause audio' : 'Listen to response'}
+                      data-tooltip={loadingAudioMsgId === msg.id ? 'Buffering neural voice...' : playingMessageId === msg.id ? 'Pause audio' : 'Listen to response (Neural Voice)'}
                     >
-                      {playingMessageId === msg.id ? (
+                      {loadingAudioMsgId === msg.id ? (
+                        <Loader2 size={14} className="animate-spin text-indigo-400" />
+                      ) : playingMessageId === msg.id ? (
                         <Pause size={14} strokeWidth={2.5} className="text-indigo-400" />
                       ) : (
                         <Volume2 size={15} strokeWidth={2.2} />

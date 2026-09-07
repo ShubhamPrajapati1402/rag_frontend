@@ -18,6 +18,7 @@ export function cleanTextForSpeech(text: string): string {
   return text
     // Strip fenced code blocks
     .replace(/`[\w-]*\n[\s\S]*?`/g, ' Code snippet omitted. ')
+    .replace(/`[\s\S]*?`/g, ' Code snippet omitted. ')
     // Strip inline code backticks
     .replace(/([^]+)/g, '')
     // Strip footnote & citation indicators like [1], [^1], [1, 2]
@@ -42,12 +43,6 @@ export function cleanTextForSpeech(text: string): string {
     .trim();
 }
 
-/**
- * Ultra-low latency (<15ms) speech synthesis controller
- */
-let currentUtterances: SpeechSynthesisUtterance[] = [];
-let isWebSpeechSpeaking = false;
-
 export const voiceApi = {
   /**
    * Clean text for speech synthesis
@@ -55,7 +50,7 @@ export const voiceApi = {
   cleanText: cleanTextForSpeech,
 
   /**
-   * Direct backend streaming audio URL
+   * Get direct streaming audio URL for server-side Edge-TTS neural speech
    */
   getStreamUrl(text: string, voice = 'en-US-ChristopherNeural', rate = '+0%'): string {
     const cleaned = cleanTextForSpeech(text);
@@ -93,7 +88,7 @@ export const voiceApi = {
   },
 
   /**
-   * Synthesize text to speech via Edge-TTS backend
+   * Synthesize text to speech via Edge-TTS backend and return object URL
    */
   async synthesizeSpeech(text: string, voice = 'en-US-ChristopherNeural', rate = '+0%'): Promise<string> {
     const cleaned = cleanTextForSpeech(text);
@@ -113,139 +108,6 @@ export const voiceApi = {
 
     const blob = await res.blob();
     return URL.createObjectURL(blob);
-  },
-
-  /**
-   * Ultra-low latency instant neural TTS (<15ms) using browser Web Speech API with Edge-TTS voice mapping
-   */
-  speakInstant(
-    text: string,
-    voiceId = 'en-US-ChristopherNeural',
-    rate = 1.0,
-    onEnd?: () => void,
-    onError?: (err: any) => void
-  ): { stop: () => void } {
-    this.stopSpeech();
-
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      if (onError) onError(new Error('SpeechSynthesis not supported'));
-      return { stop: () => {} };
-    }
-
-    const cleaned = cleanTextForSpeech(text);
-    if (!cleaned) {
-      if (onEnd) onEnd();
-      return { stop: () => {} };
-    }
-
-    // Split text into manageable sentence chunks for fluid playback & boundary sync
-    const sentences = cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [cleaned];
-    const availableVoices = window.speechSynthesis.getVoices();
-
-    // Map voice ID to best matching browser voice
-    let matchedVoice: SpeechSynthesisVoice | null = null;
-    const isFemale = voiceId.includes('Jenny') || voiceId.includes('Neerja') || voiceId.includes('Sonia');
-    const isIndian = voiceId.includes('en-IN') || voiceId.includes('Prabhat') || voiceId.includes('Neerja');
-    const isBritish = voiceId.includes('en-GB') || voiceId.includes('Ryan') || voiceId.includes('Sonia');
-
-    // Priority 1: Match exact name or online neural voice
-    matchedVoice =
-      availableVoices.find((v) => {
-        const vn = v.name.toLowerCase();
-        if (voiceId.includes('Christopher') && vn.includes('christopher')) return true;
-        if (voiceId.includes('Jenny') && vn.includes('jenny')) return true;
-        if (voiceId.includes('Prabhat') && vn.includes('prabhat')) return true;
-        if (voiceId.includes('Neerja') && vn.includes('neerja')) return true;
-        if (voiceId.includes('Ryan') && vn.includes('ryan')) return true;
-        if (voiceId.includes('Sonia') && vn.includes('sonia')) return true;
-        return false;
-      }) || null;
-
-    // Priority 2: Match accent & gender in browser voices
-    if (!matchedVoice && availableVoices.length > 0) {
-      matchedVoice =
-        availableVoices.find((v) => {
-          const lang = v.lang.toLowerCase();
-          const vn = v.name.toLowerCase();
-          if (isIndian && lang.includes('en-in')) return true;
-          if (isBritish && lang.includes('en-gb')) return true;
-          if (!isIndian && !isBritish && (lang.includes('en-us') || lang.startsWith('en'))) {
-            if (
-              isFemale &&
-              (vn.includes('female') ||
-                vn.includes('zira') ||
-                vn.includes('samantha') ||
-                vn.includes('karen') ||
-                vn.includes('victoria'))
-            )
-              return true;
-            if (
-              !isFemale &&
-              (vn.includes('male') ||
-                vn.includes('david') ||
-                vn.includes('alex') ||
-                vn.includes('daniel') ||
-                vn.includes('george'))
-            )
-              return true;
-            return true;
-          }
-          return false;
-        }) ||
-        availableVoices.find((v) => v.lang.toLowerCase().startsWith('en')) ||
-        availableVoices[0];
-    }
-
-    currentUtterances = [];
-    isWebSpeechSpeaking = true;
-
-    sentences.forEach((sentenceText, idx) => {
-      const trimmed = sentenceText.trim();
-      if (!trimmed) return;
-
-      const utterance = new SpeechSynthesisUtterance(trimmed);
-      if (matchedVoice) utterance.voice = matchedVoice;
-      utterance.rate = Math.max(0.5, Math.min(2.0, rate));
-      utterance.pitch = 1.0;
-
-      if (idx === sentences.length - 1) {
-        utterance.onend = () => {
-          isWebSpeechSpeaking = false;
-          currentUtterances = [];
-          if (onEnd) onEnd();
-        };
-      }
-
-      utterance.onerror = (e) => {
-        // If canceled explicitly, don't trigger error
-        if (e.error !== 'canceled' && e.error !== 'interrupted') {
-          console.warn('[VoiceAPI] SpeechSynthesis error:', e.error);
-          isWebSpeechSpeaking = false;
-          if (onError) onError(e);
-        }
-      };
-
-      currentUtterances.push(utterance);
-    });
-
-    // Ensure voices are loaded and start speech immediately (<10ms)
-    window.speechSynthesis.cancel();
-    currentUtterances.forEach((u) => window.speechSynthesis.speak(u));
-
-    return {
-      stop: () => this.stopSpeech(),
-    };
-  },
-
-  /**
-   * Immediately cancel any active speech
-   */
-  stopSpeech(): void {
-    isWebSpeechSpeaking = false;
-    currentUtterances = [];
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
   },
 
   /**

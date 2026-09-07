@@ -1,44 +1,52 @@
 # Noesis RAG Frontend — Intelligent Multi-Agent Knowledge Platform
 
-An enterprise-grade, real-time Agentic RAG Web Application built with **React 19**, **TypeScript**, and **Vite**, featuring a **ChatGPT-style single-line prompt bar with inline @mention document tagging**, an **ultra-low latency (<15ms) voice studio (STT & TTS)**, live LangGraph multi-agent reasoning visualization, interactive RAG triad benchmarking, and 3D gyroscopic physics.
+An enterprise-grade, real-time Agentic RAG Web Application built with **React 19**, **TypeScript**, and **Vite**, featuring a **ChatGPT-style single-line prompt bar with inline @mention document tagging**, **server-side high-fidelity Microsoft Edge-TTS neural audio streaming**, **Groq Whisper Large v3 Turbo voice typing**, live LangGraph multi-agent reasoning visualization, interactive RAG triad benchmarking, and 3D gyroscopic physics.
 
 ---
 
 ## Key Architecture & Features
 
-### 1. Ultra-Low Latency (<15ms) Multimodal Voice Studio
-- **Instant Client-Side Neural TTS (<15ms Time-to-First-Audio)**:
-  - Leverages modern Web Speech synthesis with intelligent voice mapping to Microsoft neural voices (Christopher, Jenny, Prabhat, Neerja, Ryan, Sonia).
-  - Initiates speech within **5–15 milliseconds** with zero network round-trip lag.
-  - Sentence-level chunk streaming ensures natural pacing, pause/resume stability, and word boundary alignment.
-  - Seamless fallback to backend **Microsoft Edge-TTS** audio streaming.
-- **Dynamic Playback Speed Pill**:
+### 1. Server-Side Microsoft Edge-TTS Neural Audio Streaming & Voice Studio
+- **High-Fidelity Neural Audio Streaming**:
+  - Direct MP3 audio streaming from the FastAPI backend (`GET /api/v1/voice/tts` and `POST /api/v1/voice/tts`) powered by **Microsoft Edge-TTS** 24kHz neural voices.
+  - Curated neural voices with regional accents and genders:
+    - `en-US-ChristopherNeural` (US English Male, Professional)
+    - `en-US-JennyNeural` (US English Female, Natural)
+    - `en-IN-PrabhatNeural` (Indian English Male, Clear)
+    - `en-IN-NeerjaNeural` (Indian English Female, Warm)
+    - `en-GB-RyanNeural` (British English Male, Refined)
+    - `en-GB-SoniaNeural` (British English Female, Expressive)
+- **Sub-Millisecond In-Memory LRU Audio Caching (<1ms Replay)**:
+  - Backend caches synthesized audio bytes in RAM with `ETag` and `Cache-Control` headers for instantaneous zero-latency replay.
+- **Visual Buffer & Playback State Indicators**:
+  - Immediate spinner feedback (`Loader2`) on the speaker icon while audio stream buffers, seamlessly transitioning to `Pause` on playback.
+- **Dynamic Playback Speed Controller**:
   - Cycle speeds in real time: `0.8x`, `1.0x`, `1.25x`, `1.5x`, and `2.0x`.
-  - Persists user speed preferences across sessions.
-- **Voice Typing with Groq Whisper Large v3 Turbo**:
-  - One-click microphone recording (`MediaRecorder` webm audio stream).
-  - High-precision speech-to-text transcription via `POST /api/v1/voice/stt`.
-  - Built-in silence hallucination filter.
+  - Persists speed preferences in local storage.
+- **High-Accuracy Voice Typing (Groq Whisper Large v3 Turbo)**:
+  - Micro-recording via HTML5 `MediaRecorder` webm audio stream.
+  - Sub-second speech-to-text transcription via `POST /api/v1/voice/stt`.
+  - Automated silence hallucination suppression.
 
 ---
 
 ### 2. ChatGPT-Style Single-Line Prompt Bar with Inline @Mention Document Tagging
-- **Unified Pill-Shaped Layout**:
-  - Sleek, single horizontal line input bar: `[+] [Document Chip X] [Ask a question...] [Mic] [Send]`.
-  - Left-aligned document tag chips with subtle glassmorphic badges.
-  - Automatic removal/clearing of tagged document chips upon message submission.
+- **Unified Pill-Shaped Input Bar**:
+  - Single horizontal line layout: `[+] [Document Chip X] [Ask a question...] [Mic] [Send]`.
+  - Left-aligned document tag chips with subtle glassmorphic styling.
+  - Automatic clearance and reset of tagged document chips upon message submission.
 - **Interactive @ Mention Selector**:
-  - Type `@` to open the fuzzy document dropdown menu.
-  - Displays document format icons (`PDF`, `DOCX`, `CSV`, `XLSX`, `TXT`) and file titles.
-  - Keyboard navigation (`ArrowUp`, `ArrowDown`, `Enter`, `Escape`) and mouse selection.
+  - Type `@` to open the fuzzy document search dropdown.
+  - Displays file format icons (`PDF`, `DOCX`, `CSV`, `XLSX`, `TXT`) and file titles.
+  - Full keyboard navigation (`ArrowUp`, `ArrowDown`, `Enter`, `Escape`) and click-to-attach.
 - **Attached Document Badges on Messages**:
-  - User message bubbles prominently render the attached document pill (`Document Name`).
+  - User message bubbles render an attached document badge (`Document Name`).
 
 ---
 
 ### 3. Streamlined Model & API Key Selector (Inbuilt vs Custom BYOK)
 - **Zero-Friction Switching**: Click the model pill in the navigation bar to switch between:
-  - **Inbuilt Model (Default)**: Free platform-managed model (`gemini-flash-latest` + Groq fallback chain) with no API key required.
+  - **Inbuilt Model (Default)**: Free platform-managed model (`gemini-flash-latest` with Groq fallback chain) with no API key required.
   - **Custom Model (BYOK)**: Enter any model name (`gpt-4o`, `claude-3-5-sonnet`, `deepseek-chat`, `llama-3.3-70b-versatile`) and personal API Key.
 - **Clickable Quick Presets**: One-click configuration for popular frontier models.
 - **Local Endpoint Support**: Custom Base URL field for local Ollama (`http://localhost:11434/v1`), vLLM, or LM Studio instances.
@@ -88,7 +96,7 @@ An enterprise-grade, real-time Agentic RAG Web Application built with **React 19
 | **Framework** | React 19, TypeScript, Vite |
 | **Styling** | Vanilla CSS, Glassmorphism, Theme-Adaptive Design (Dark & Light) |
 | **Icons** | Lucide React |
-| **Voice Engine** | Web Speech API (<15ms Instant Speech) + Microsoft Edge-TTS Streaming + Groq Whisper STT |
+| **Voice Engine** | Server-Side Microsoft Edge-TTS Streaming + Groq Whisper STT |
 | **Communication** | Fetch API, Server-Sent Events (SSE), WebSockets |
 | **Math / Rendering** | Katex, React Markdown, PrismJS Syntax Highlighting |
 
@@ -112,7 +120,7 @@ npm install
 ```
 
 ### 3. Environment Configuration
-Create a `.env` file (or `.env.local`):
+Create a `.env` file:
 ```env
 VITE_BACKEND_URL=http://localhost:2001
 VITE_WS_URL=ws://localhost:2001
