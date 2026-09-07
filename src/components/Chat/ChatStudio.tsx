@@ -165,6 +165,13 @@ export default function ChatStudio({
     return getCachedSessionMessages(currentSessionId) || [];
   });
   const [input, setInput] = useState<string>('');
+  // In-Chat Document Selector & @Mention State
+  const [taggedDocuments, setTaggedDocuments] = useState<DocumentItem[]>([]);
+  const [isDocMentionOpen, setIsDocMentionOpen] = useState<boolean>(false);
+  const [docMentionQuery, setDocMentionQuery] = useState<string>('');
+  const [docMentionIndex, setDocMentionIndex] = useState<number>(0);
+  const mentionDropdownRef = useRef<HTMLDivElement>(null);
+
   // Voice STT & TTS States
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
@@ -191,6 +198,7 @@ export default function ChatStudio({
 
   useEffect(() => {
     return () => {
+      voiceApi.stopSpeech();
       if (activeAudioRef.current) {
         activeAudioRef.current.pause();
         activeAudioRef.current = null;
@@ -255,9 +263,10 @@ export default function ChatStudio({
     }
   };
 
-    const handleToggleSpeak = (msgId: string | number, text: string) => {
-    // If already playing this message, pause and reset
+  const handleToggleSpeak = (msgId: string | number, text: string) => {
+    // If already playing this message, stop and reset immediately
     if (playingMessageId === msgId) {
+      voiceApi.stopSpeech();
       if (activeAudioRef.current) {
         activeAudioRef.current.pause();
         activeAudioRef.current = null;
@@ -266,37 +275,52 @@ export default function ChatStudio({
       return;
     }
 
-    // Stop any currently playing audio
+    // Stop any currently active speech / audio playback
+    voiceApi.stopSpeech();
     if (activeAudioRef.current) {
       activeAudioRef.current.pause();
       activeAudioRef.current = null;
     }
 
+    setPlayingMessageId(msgId);
+
+    // Instant (<15ms) neural speech synthesis via Web Speech API with Edge-TTS voice mapping
     try {
-      // Direct stream URL starts audio playback immediately (<100ms)
-      const streamUrl = voiceApi.getStreamUrl(text, selectedVoice);
-      const audio = new Audio(streamUrl);
-      audio.playbackRate = playbackSpeed;
-      activeAudioRef.current = audio;
-      setPlayingMessageId(msgId);
+      voiceApi.speakInstant(
+        text,
+        selectedVoice,
+        playbackSpeed,
+        () => {
+          setPlayingMessageId(null);
+        },
+        (err) => {
+          console.warn('Instant Web Speech API fallback to backend Edge-TTS stream:', err);
+          // Seamless fallback to Edge-TTS backend streaming
+          try {
+            const streamUrl = voiceApi.getStreamUrl(text, selectedVoice);
+            const audio = new Audio(streamUrl);
+            audio.playbackRate = playbackSpeed;
+            activeAudioRef.current = audio;
 
-      audio.onended = () => {
-        setPlayingMessageId(null);
-        activeAudioRef.current = null;
-      };
-
-      audio.onerror = () => {
-        setPlayingMessageId(null);
-        activeAudioRef.current = null;
-      };
-
-      audio.play().catch((err) => {
-        console.error('Audio play error:', err);
-        setPlayingMessageId(null);
-        activeAudioRef.current = null;
-      });
+            audio.onended = () => {
+              setPlayingMessageId(null);
+              activeAudioRef.current = null;
+            };
+            audio.onerror = () => {
+              setPlayingMessageId(null);
+              activeAudioRef.current = null;
+            };
+            audio.play().catch(() => {
+              setPlayingMessageId(null);
+              activeAudioRef.current = null;
+            });
+          } catch {
+            setPlayingMessageId(null);
+          }
+        }
+      );
     } catch (err) {
-      console.error('TTS speech generation failed:', err);
+      console.error('TTS speech playback failed:', err);
       setPlayingMessageId(null);
     }
   };
@@ -621,6 +645,50 @@ export default function ChatStudio({
     return { label: `Processing (${nodeName})`, icon: <Zap size={13} /> };
   };
 
+  
+    const getDocName = (d: any): string => {
+    return d?.fileName || d?.filename || d?.name || d?.document_name || 'Document';
+  };
+
+  const filteredMentionDocs = useMemo(() => {
+    if (!docMentionQuery) return documents;
+    const q = docMentionQuery.toLowerCase();
+    return documents.filter(d => getDocName(d).toLowerCase().includes(q));
+  }, [documents, docMentionQuery]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    const lastAtPos = val.lastIndexOf('@');
+    if (lastAtPos !== -1 && (lastAtPos === 0 || val[lastAtPos - 1] === ' ')) {
+      const mentionText = val.slice(lastAtPos + 1);
+      if (!mentionText.includes(' ')) {
+        setDocMentionQuery(mentionText);
+        setIsDocMentionOpen(true);
+        setDocMentionIndex(0);
+        return;
+      }
+    }
+    setIsDocMentionOpen(false);
+  };
+
+  const handleTagDocument = (doc: DocumentItem) => {
+    if (!taggedDocuments.some(d => d.id === doc.id)) {
+      setTaggedDocuments(prev => [...prev, doc]);
+    }
+    const lastAtPos = input.lastIndexOf('@');
+    if (lastAtPos !== -1) {
+      const before = input.slice(0, lastAtPos);
+      setInput(before.trim() ? before + ' ' : '');
+    }
+    setIsDocMentionOpen(false);
+    inputRef.current?.focus();
+  };
+
+  const handleRemoveTag = (docId: number) => {
+    setTaggedDocuments(prev => prev.filter(d => d.id !== docId));
+  };
+
   const handleSend = async (e?: React.FormEvent | null, overridePrompt?: string) => {
     e?.preventDefault();
     const queryToSend = overridePrompt || input.trim();
@@ -635,11 +703,13 @@ export default function ChatStudio({
       id: `user-${Date.now()}`,
       type: 'user',
       content: queryToSend,
+      taggedDocs: taggedDocuments.map(d => getDocName(d)),
       createdAt: new Date().toISOString()
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
+    setTaggedDocuments([]); // Auto-clear tagged document chip upon sending
     setIsStreaming(true);
     setStreamingText('');
     setStreamingCitations([]);
@@ -657,6 +727,7 @@ export default function ChatStudio({
       await chatApi.streamChat({
         question: queryToSend,
         sessionId: activeSession || null,
+        documentIds: taggedDocuments.length > 0 ? taggedDocuments.map(d => d.id) : null,
         modelName: selectedModel === 'inbuilt' ? undefined : selectedModel,
         apiKey: customApiKey || undefined,
         modelProvider: selectedModel === 'inbuilt' ? 'inbuilt' : undefined,
@@ -735,6 +806,27 @@ export default function ChatStudio({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isDocMentionOpen && filteredMentionDocs.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setDocMentionIndex(prev => (prev + 1) % filteredMentionDocs.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setDocMentionIndex(prev => (prev - 1 + filteredMentionDocs.length) % filteredMentionDocs.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        handleTagDocument(filteredMentionDocs[docMentionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setIsDocMentionOpen(false);
+        return;
+      }
+    }
     if (e.key === 'ArrowUp') {
       if (inputHistory.length === 0) return;
       if (historyIndex === -1) {
@@ -881,7 +973,17 @@ export default function ChatStudio({
               {msg.type === 'user' ? (
                 <div className="user-message-group anim-slide-up">
                   <div className="user-message-bubble">
-                    {msg.content}
+                    {(msg as any).taggedDocs && (msg as any).taggedDocs.length > 0 && (
+                      <div className="user-attached-docs-row">
+                        {(msg as any).taggedDocs.map((docName: string, idx: number) => (
+                          <span key={idx} className="user-attached-doc-badge">
+                            <FileText size={11} className="text-indigo-400" />
+                            <span className="user-attached-doc-text">{docName}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="user-message-text">{msg.content}</div>
                   </div>
                   <div className="user-actions-row">
                     <span className="msg-timestamp">{formatISTDateTime(msg.createdAt)}</span>
@@ -1055,23 +1157,76 @@ export default function ChatStudio({
 
       {/* Floating Bottom Console */}
       <div className="chatgpt-input-wrapper">
-        {/* ChatGPT Input Bar */}
+        {/* Autocomplete @mention Popover */}
+        {isDocMentionOpen && filteredMentionDocs.length > 0 && (
+          <div ref={mentionDropdownRef} className="doc-mention-popover anim-slide-up">
+            <div className="doc-mention-header">
+              <Sparkles size={13} className="text-indigo-400" />
+              <span>Tag a Document to Scope Search</span>
+            </div>
+            <div className="doc-mention-list">
+              {filteredMentionDocs.map((doc, idx) => (
+                <div
+                  key={doc.id}
+                  className={`doc-mention-item ${idx === docMentionIndex ? 'selected' : ''}`}
+                  onClick={() => handleTagDocument(doc)}
+                  onMouseEnter={() => setDocMentionIndex(idx)}
+                >
+                  <div className="doc-mention-icon">
+                    <FileText size={15} />
+                  </div>
+                  <div className="doc-mention-info">
+                    <div className="doc-mention-title">{getDocName(doc)}</div>
+                    <div className="doc-mention-meta">
+                      {doc.format || doc.fileType || 'PDF'}{doc.size ? ` • ${doc.size}` : ''}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ChatGPT Input Bar with Inside Attachment Chips */}
         <form className="chatgpt-input-bar anim-slide-up" onSubmit={(e) => handleSend(e)}>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="input-attach-btn"
-            onClick={onNavigateToIngestion}
-            data-tooltip="Attach document"
+            onClick={() => {
+              if (documents.length > 0) {
+                setIsDocMentionOpen(prev => !prev);
+                setDocMentionQuery('');
+              } else {
+                onNavigateToIngestion();
+              }
+            }}
+            data-tooltip="Tag Document (@)"
           >
             <Plus size={18} />
           </button>
 
-          <input 
+          {/* Inline Tagged Document Chips (ChatGPT Single-Row Style) */}
+          {taggedDocuments.map(doc => (
+            <div key={doc.id} className="input-inline-doc-chip anim-scale-in">
+              <FileText size={12} className="text-indigo-400" />
+              <span className="input-inline-doc-name">{getDocName(doc)}</span>
+              <button
+                type="button"
+                className="input-inline-doc-remove"
+                onClick={() => handleRemoveTag(doc.id)}
+                data-tooltip="Remove filter"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+
+          <input
             ref={inputRef}
-            type="text" 
-            placeholder="Message Noesis..."
+            type="text"
+            placeholder={taggedDocuments.length > 0 ? "Ask a question..." : "Message Noesis... (type @ to tag docs)"}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             disabled={isStreaming}
           />
@@ -1103,7 +1258,7 @@ export default function ChatStudio({
           >
             <ArrowUp size={16} />
           </button>
-        </form>
+          </form>
 
         {/* Disclaimer */}
         <div className="chatgpt-disclaimer">

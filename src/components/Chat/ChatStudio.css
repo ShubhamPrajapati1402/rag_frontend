@@ -1543,3 +1543,395 @@
   from { opacity: 0.3; transform: scale(0.7); }
   to { opacity: 1; transform: scale(1.2); }
 }
+
+
+
+/* ==========================================================================
+   @Mention Document Selector & Tagged Document Filter Bar (Theme-Adaptive)
+   ========================================================================== */
+
+.tagged-docs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 760px;
+  padding: 5px 10px;
+  margin-bottom: 6px;
+  background: var(--bg-surface, #2f2f2f);
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-md, 12px);
+  box-shadow: var(--shadow-subtle, 0 2px 8px rgba(0, 0, 0, 0.15));
+}
+
+.tagged-docs-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tagged-doc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  border-radius: var(--radius-sm, 8px);
+  font-size: 11.5px;
+  color: var(--text-primary, #ececec);
+  font-weight: 500;
+}
+
+.tagged-doc-name {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tagged-doc-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #8e8e8e);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.tagged-doc-remove:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.tagged-docs-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #8e8e8e);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+
+.tagged-docs-clear-btn:hover {
+  color: #ef4444;
+  text-decoration: underline;
+}
+
+/* @Mention Autocomplete Dropdown Popover (Compact & Theme-Adaptive) */
+.doc-mention-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 12px;
+  width: calc(100% - 24px);
+  max-width: 440px;
+  background: var(--bg-surface, #2f2f2f);
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.16));
+  border-radius: var(--radius-md, 14px);
+  box-shadow: var(--shadow-floating, 0 12px 36px rgba(0, 0, 0, 0.4));
+  z-index: 60;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+
+.doc-mention-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #b4b4b4);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  background: var(--bg-surface-hover, #383838);
+}
+
+.doc-mention-list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.doc-mention-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm, 8px);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.doc-mention-item:hover,
+.doc-mention-item.selected {
+  background: var(--bg-surface-hover, #383838);
+}
+
+[data-theme="light"] .doc-mention-item:hover,
+[data-theme="light"] .doc-mention-item.selected {
+  background: var(--bg-surface-hover, #ececec);
+}
+
+.doc-mention-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+  flex-shrink: 0;
+}
+
+.doc-mention-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-mention-title {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-primary, #ececec);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-mention-meta {
+  font-size: 10.5px;
+  color: var(--text-muted, #8e8e8e);
+  margin-top: 1px;
+}
+
+
+/* ==========================================================================
+   Inside-Prompt Attachment Chips & User Message Attachment Badges
+   ========================================================================== */
+
+/* Structure of ChatGPT-style Input Bar with Inside Chips */
+.chatgpt-input-bar {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 800px;
+  background: var(--bg-surface, #2f2f2f);
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.16));
+  border-radius: 20px;
+  padding: 6px 10px;
+  box-shadow: var(--shadow-subtle, 0 4px 20px rgba(0, 0, 0, 0.2));
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chatgpt-input-bar:focus-within {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3), 0 4px 24px rgba(0, 0, 0, 0.25);
+}
+
+.input-inside-tags-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  align-self: flex-start;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 2px 4px 4px 4px;
+  width: 100%;
+}
+
+.input-inside-doc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: rgba(99, 102, 241, 0.14);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  font-size: 11.5px;
+  color: var(--text-primary, #ececec);
+  font-weight: 500;
+}
+
+.input-inside-doc-name {
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.input-inside-doc-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #8e8e8e);
+  cursor: pointer;
+  padding: 1px;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+
+.input-inside-doc-remove:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.input-controls-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* User Message Attached Document Badges */
+.user-attached-docs-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.user-attached-doc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  font-size: 11px;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.user-attached-doc-text {
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* ==========================================================================
+   ChatGPT-Style Inline Attachment Chips & Input Bar (Single Horizontal Row)
+   ========================================================================== */
+
+.chatgpt-input-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  background: var(--bg-surface, #2f2f2f);
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.16));
+  border-radius: var(--radius-pill, 9999px);
+  padding: 6px 8px 6px 12px;
+  box-shadow: var(--shadow-subtle, 0 4px 20px rgba(0, 0, 0, 0.2));
+  gap: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chatgpt-input-bar:focus-within {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3), 0 4px 24px rgba(0, 0, 0, 0.25);
+}
+
+.input-inline-doc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-surface-hover, #383838);
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.18));
+  border-radius: var(--radius-pill, 9999px);
+  font-size: 12px;
+  color: var(--text-primary, #ececec);
+  font-weight: 500;
+  flex-shrink: 0;
+  user-select: none;
+  animation: scaleIn 0.15s ease;
+}
+
+[data-theme="light"] .input-inline-doc-chip {
+  background: var(--bg-surface-hover, #ececec);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--text-primary, #0d0d0d);
+}
+
+.input-inline-doc-name {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.input-inline-doc-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #8e8e8e);
+  cursor: pointer;
+  padding: 1px;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.input-inline-doc-remove:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.chatgpt-input-bar input {
+  flex: 1;
+  min-width: 80px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary, #ececec);
+  font-size: 14px;
+  padding: 4px 0;
+}
+
+[data-theme="light"] .chatgpt-input-bar input {
+  color: var(--text-primary, #0d0d0d);
+}
+
+/* User Message Attached Document Badges */
+.user-attached-docs-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.user-attached-doc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-pill, 9999px);
+  font-size: 11px;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.user-attached-doc-text {
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
