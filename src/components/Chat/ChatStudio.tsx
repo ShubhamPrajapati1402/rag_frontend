@@ -284,6 +284,13 @@ export default function ChatStudio({
       activeAudioRef.current = null;
     }
 
+    const cleanedText = voiceApi.cleanText(text);
+    if (!cleanedText) {
+      setLoadingAudioMsgId(null);
+      setPlayingMessageId(null);
+      return;
+    }
+
     setLoadingAudioMsgId(msgId);
     setPlayingMessageId(null);
 

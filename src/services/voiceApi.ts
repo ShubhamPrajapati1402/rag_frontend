@@ -15,32 +15,33 @@ const BASE_URL = BACKEND_BASE_URL || 'http://localhost:2001';
  */
 export function cleanTextForSpeech(text: string): string {
   if (!text) return '';
-  return text
-    // Strip fenced code blocks
-    .replace(/`[\w-]*\n[\s\S]*?`/g, ' Code snippet omitted. ')
-    .replace(/`[\s\S]*?`/g, ' Code snippet omitted. ')
-    // Strip inline code backticks
-    .replace(/([^]+)/g, '')
-    // Strip footnote & citation indicators like [1], [^1], [1, 2]
-    .replace(/\[\^?\d+(?:,\s*\d+)*\]/g, '')
-    // Convert markdown links [title](url) to title
-    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '')
-    // Remove raw URLs
-    .replace(/https?:\/\/\S+/g, '')
-    // Remove headers (# Title)
-    .replace(/^\s*#+\s*/gm, '')
-    // Remove blockquote markers
-    .replace(/^\s*>+\s*/gm, '')
-    // Remove bullet points / list markers
-    .replace(/^\s*[-*+]\s+/gm, '')
-    // Remove bold/italic markdown characters
-    .replace(/[*_~]/g, '')
-    // Remove horizontal rules
-    .replace(/^\s*---+[\s]*$/gm, '')
-    // Normalize newlines and whitespace
-    .replace(/\n\s*\n+/g, '. ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  let cleaned = text;
+
+  // Replace markdown code blocks (```python ... ```) with spoken placeholder
+  cleaned = cleaned.replace(/```[\s\S]*?```/g, ' Code snippet omitted. ');
+  // Strip inline code backticks `code` -> code
+  cleaned = cleaned.replace(/`([^`]+)`/g, '$1');
+  // Strip footnote & citation indicators like [1], [^1], [1, 2]
+  cleaned = cleaned.replace(/\[\^?\d+(?:,\s*\d+)*\]/g, '');
+  // Convert markdown links [title](url) -> title
+  cleaned = cleaned.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+  // Remove raw URLs
+  cleaned = cleaned.replace(/https?:\/\/\S+/g, '');
+  // Remove header hashes (# Title)
+  cleaned = cleaned.replace(/^\s*#+\s*/gm, '');
+  // Remove blockquote markers (> Quote)
+  cleaned = cleaned.replace(/^\s*>+\s*/gm, '');
+  // Remove bullet points / list dashes
+  cleaned = cleaned.replace(/^\s*[-*+]\s+/gm, '');
+  // Remove bold/italic markdown characters
+  cleaned = cleaned.replace(/[*_~]/g, '');
+  // Remove horizontal rules
+  cleaned = cleaned.replace(/^\s*---+[\s]*$/gm, '');
+  // Normalize multiple newlines and spaces
+  cleaned = cleaned.replace(/\n\s*\n+/g, '. ');
+  cleaned = cleaned.replace(/\s+/g, ' ');
+
+  return cleaned.trim();
 }
 
 export const voiceApi = {
