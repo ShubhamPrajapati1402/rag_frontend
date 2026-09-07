@@ -23,7 +23,7 @@ interface SimpleModelModalProps {
 const PRESET_MODELS = [
   { id: 'gpt-4o', label: 'GPT-4o (OpenAI)' },
   { id: 'claude-3-5-sonnet-latest', label: 'Claude 3.5 Sonnet' },
-  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  { id: 'gemini-3.6-flash', label: 'Gemini 2.5 Flash' },
   { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (Groq)' },
   { id: 'deepseek-chat', label: 'DeepSeek V3' },
   { id: 'mistral-large-latest', label: 'Mistral Large' }
@@ -38,7 +38,7 @@ export default function SimpleModelModal({
   onSave,
   onResetToInbuilt
 }: SimpleModelModalProps) {
-  const isInbuilt = !selectedModel || selectedModel === 'inbuilt' || selectedModel === 'gemini-2.5-flash' && !apiKey;
+  const isInbuilt = !selectedModel || selectedModel === 'inbuilt' || selectedModel === 'gemini-3.6-flash' && !apiKey;
 
   const [mode, setMode] = useState<'inbuilt' | 'custom'>(isInbuilt ? 'inbuilt' : 'custom');
   const [modelInput, setModelInput] = useState<string>(selectedModel && selectedModel !== 'inbuilt' ? selectedModel : 'gpt-4o');
@@ -48,7 +48,7 @@ export default function SimpleModelModal({
 
   useEffect(() => {
     if (isOpen) {
-      const isCurrentlyInbuilt = !selectedModel || selectedModel === 'inbuilt' || (selectedModel === 'gemini-2.5-flash' && !apiKey);
+      const isCurrentlyInbuilt = !selectedModel || selectedModel === 'inbuilt' || (selectedModel === 'gemini-3.6-flash' && !apiKey);
       setMode(isCurrentlyInbuilt ? 'inbuilt' : 'custom');
       setModelInput(selectedModel && selectedModel !== 'inbuilt' ? selectedModel : 'gpt-4o');
       setKeyInput(apiKey || '');

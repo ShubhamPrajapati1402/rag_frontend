@@ -1,7 +1,14 @@
 ﻿import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { 
+import {
+  Mic,
+  MicOff,
+  Volume2,
+  Pause,
+  
+  Square,
+  Loader2,
   ArrowUp, 
   Copy, 
   Check, 
@@ -24,6 +31,7 @@ import {
 } from 'lucide-react';
 import { DocumentItem, ChatMessage, SourceCitation, UserProfile } from '../../types';
 import { chatApi } from '../../services/chatApi';
+import { voiceApi, VoiceProfile } from '../../services/voiceApi';
 import './ChatStudio.css';
 
 export function formatISTDateTime(dateInput?: string | number | Date): string {
@@ -157,6 +165,142 @@ export default function ChatStudio({
     return getCachedSessionMessages(currentSessionId) || [];
   });
   const [input, setInput] = useState<string>('');
+  // Voice STT & TTS States
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
+  const [playingMessageId, setPlayingMessageId] = useState<string | number | null>(null);
+  const [isGeneratingVoice, setIsGeneratingVoice] = useState<string | number | null>(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(() => {
+    return parseFloat(localStorage.getItem('noesis_voice_speed') || '1.0');
+  });
+  const [selectedVoice, setSelectedVoice] = useState<string>(() => {
+    return localStorage.getItem('noesis_selected_voice') || 'en-US-ChristopherNeural';
+  });
+  const [availableVoices, setAvailableVoices] = useState<VoiceProfile[]>([]);
+  const [showVoiceMenu, setShowVoiceMenu] = useState<boolean>(false);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    voiceApi.getVoices().then((voices) => {
+      if (voices && voices.length > 0) setAvailableVoices(voices);
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (activeAudioRef.current) {
+        activeAudioRef.current.pause();
+        activeAudioRef.current = null;
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
+
+  const handleToggleRecording = async () => {
+    if (isRecording) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunksRef.current = [];
+        const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        };
+
+        recorder.onstop = async () => {
+          setIsRecording(false);
+          setIsTranscribing(true);
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          stream.getTracks().forEach((track) => track.stop());
+
+          try {
+            const transcript = await voiceApi.transcribeAudio(audioBlob);
+            if (transcript && transcript.trim()) {
+              setInput((prev) => (prev ? `${prev} ${transcript.trim()}` : transcript.trim()));
+            }
+          } catch (err) {
+            console.error('STT transcription error:', err);
+          } finally {
+            setIsTranscribing(false);
+          }
+        };
+
+        mediaRecorderRef.current = recorder;
+        recorder.start(250);
+        setIsRecording(true);
+      } catch (err) {
+        console.error('Failed to access microphone:', err);
+        alert('Microphone access is required for voice typing.');
+      }
+    }
+  };
+
+  const handleCycleSpeed = () => {
+    const speeds = [0.8, 1.0, 1.25, 1.5, 2.0];
+    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
+    const newSpeed = speeds[nextIdx];
+    setPlaybackSpeed(newSpeed);
+    localStorage.setItem('noesis_voice_speed', String(newSpeed));
+    if (activeAudioRef.current) {
+      activeAudioRef.current.playbackRate = newSpeed;
+    }
+  };
+
+    const handleToggleSpeak = (msgId: string | number, text: string) => {
+    // If already playing this message, pause and reset
+    if (playingMessageId === msgId) {
+      if (activeAudioRef.current) {
+        activeAudioRef.current.pause();
+        activeAudioRef.current = null;
+      }
+      setPlayingMessageId(null);
+      return;
+    }
+
+    // Stop any currently playing audio
+    if (activeAudioRef.current) {
+      activeAudioRef.current.pause();
+      activeAudioRef.current = null;
+    }
+
+    try {
+      // Direct stream URL starts audio playback immediately (<100ms)
+      const streamUrl = voiceApi.getStreamUrl(text, selectedVoice);
+      const audio = new Audio(streamUrl);
+      audio.playbackRate = playbackSpeed;
+      activeAudioRef.current = audio;
+      setPlayingMessageId(msgId);
+
+      audio.onended = () => {
+        setPlayingMessageId(null);
+        activeAudioRef.current = null;
+      };
+
+      audio.onerror = () => {
+        setPlayingMessageId(null);
+        activeAudioRef.current = null;
+      };
+
+      audio.play().catch((err) => {
+        console.error('Audio play error:', err);
+        setPlayingMessageId(null);
+        activeAudioRef.current = null;
+      });
+    } catch (err) {
+      console.error('TTS speech generation failed:', err);
+      setPlayingMessageId(null);
+    }
+  };
+
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [streamingText, setStreamingText] = useState<string>('');
   const [streamingCitations, setStreamingCitations] = useState<SourceCitation[]>([]);
@@ -708,7 +852,7 @@ export default function ChatStudio({
             <div className="hero-greeting-container anim-slide-up">
               <h1 className="chatgpt-hero-prompt">What can I help with?</h1>
               <span className="hero-salutation-text">
-                {greetingInfo.timeGreeting}, {greetingInfo.displayName} â€¢ Select a prompt below or ask anything
+                {greetingInfo.timeGreeting}, {greetingInfo.displayName} • Select a prompt below or ask anything
               </span>
             </div>
 
@@ -775,7 +919,7 @@ export default function ChatStudio({
                           <span className="source-num-badge">{sIdx + 1}</span>
                           <FileText size={11} className="source-file-icon" />
                           <span className="source-name-text">{src.fileName}</span>
-                          {src.page && <span className="source-page-text">â€¢ {src.page}</span>}
+                          {src.page && <span className="source-page-text">• {src.page}</span>}
                         </button>
                       ))}
                     </div>
@@ -797,6 +941,30 @@ export default function ChatStudio({
                     >
                       {copiedId === msg.id ? <Check size={13} className="text-accent" /> : <Copy size={13} />}
                     </button>
+                    {/* TTS Voice Speaker / Pause Button */}
+                    <button 
+                      className={`action-icon-btn voice-tts-btn ${playingMessageId === msg.id ? 'is-speaking' : ''}`}
+                      onClick={() => handleToggleSpeak(msg.id, msg.content)}
+                      data-tooltip={playingMessageId === msg.id ? 'Pause audio' : 'Listen to response'}
+                    >
+                      {playingMessageId === msg.id ? (
+                        <Pause size={14} strokeWidth={2.5} className="text-indigo-400" />
+                      ) : (
+                        <Volume2 size={15} strokeWidth={2.2} />
+                      )}
+                    </button>
+
+                    {/* Playback Speed Controller Pill */}
+                    {playingMessageId === msg.id && (
+                      <button
+                        type="button"
+                        className="playback-speed-pill anim-pop-in"
+                        onClick={handleCycleSpeed}
+                        data-tooltip="Playback Speed: Click to cycle (0.8x, 1x, 1.25x, 1.5x, 2x)"
+                      >
+                        {playbackSpeed}x
+                      </button>
+                    )}
                     <button className="action-icon-btn" data-tooltip="Good response"><ThumbsUp size={14} /></button>
                     <button className="action-icon-btn" data-tooltip="Bad response"><ThumbsDown size={14} /></button>
                   </div>
@@ -864,7 +1032,7 @@ export default function ChatStudio({
                       <span className="source-num-badge">{sIdx + 1}</span>
                       <FileText size={11} className="source-file-icon" />
                       <span className="source-name-text">{src.fileName}</span>
-                      {src.page && <span className="source-page-text">â€¢ {src.page}</span>}
+                      {src.page && <span className="source-page-text">• {src.page}</span>}
                     </button>
                   ))}
                 </div>
@@ -908,6 +1076,26 @@ export default function ChatStudio({
             disabled={isStreaming}
           />
 
+          {/* Voice Input Microphone Button */}
+          <button 
+            type="button" 
+            className={`input-voice-btn ${isRecording ? 'is-recording' : ''} ${isTranscribing ? 'is-transcribing' : ''}`}
+            onClick={handleToggleRecording}
+            disabled={isStreaming || isTranscribing}
+            data-tooltip={isRecording ? 'Click to stop speaking' : isTranscribing ? 'Transcribing speech...' : 'Voice typing (Groq Whisper)'}
+          >
+            {isTranscribing ? (
+              <Loader2 size={17} className="animate-spin text-indigo-400" />
+            ) : isRecording ? (
+              <span className="recording-indicator">
+                <span className="recording-pulse-dot"></span>
+                <Square size={13} fill="currentColor" />
+              </span>
+            ) : (
+              <Mic size={17} />
+            )}
+          </button>
+
           <button 
             type="submit" 
             className={`send-arrow-circle ${input.trim() && !isStreaming ? 'active' : ''}`}
@@ -933,7 +1121,7 @@ export default function ChatStudio({
                 <div>
                   <h4>{activeSource.fileName}</h4>
                   <span className="drawer-loc">
-                    {activeSource.page || activeSource.sheet || 'Reference Document'} {activeSource.similarity ? `â€¢ ${activeSource.similarity}` : ''}
+                    {activeSource.page || activeSource.sheet || 'Reference Document'} {activeSource.similarity ? `• ${activeSource.similarity}` : ''}
                   </span>
                 </div>
               </div>
