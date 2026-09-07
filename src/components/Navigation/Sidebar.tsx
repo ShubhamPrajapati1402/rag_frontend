@@ -323,7 +323,6 @@ export default function Sidebar({
           <button 
             className="user-profile-row-btn"
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-            data-tooltip="User profile"
           >
             <div className="user-avatar-wrap">
               <div className="user-avatar-circle">
