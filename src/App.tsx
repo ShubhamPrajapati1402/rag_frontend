@@ -1,29 +1,44 @@
 import { useState, useEffect, useCallback } from 'react';
-import Navbar from './components/Header/Navbar';
 import Sidebar from './components/Navigation/Sidebar';
+import Navbar from './components/Header/Navbar';
 import ChatStudio, { evictSessionCache } from './components/Chat/ChatStudio';
 import IngestionHub from './components/Ingestion/IngestionHub';
-import CommandPalette from './components/CommandPalette/CommandPalette';
+import DeveloperEvaluationDashboard from './components/Evaluation/DeveloperEvaluationDashboard';
 import AuthModal from './components/Auth/AuthModal';
-import { authApi } from './services/authApi';
+import AcceptInviteModal from './components/Evaluation/AcceptInviteModal';
+import CommandPalette from './components/CommandPalette/CommandPalette';
+import SimpleModelModal from './components/Models/SimpleModelModal';
 import { chatApi } from './services/chatApi';
-import { ThemeType, DocumentItem, ChatSession, UserProfile } from './types';
+import { authApi } from './services/authApi';
+import { DocumentItem, ChatSession, ThemeType, UserProfile } from './types';
 import './App.css';
 
 function getInitialTheme(): ThemeType {
   const saved = localStorage.getItem('app-theme') as ThemeType | null;
+  let initialTheme: ThemeType = 'dark';
   if (saved === 'dark' || saved === 'light') {
-    return saved;
+    initialTheme = saved;
+  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    initialTheme = 'dark';
+  } else {
+    initialTheme = 'light';
   }
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
-  }
-  return 'light';
+  document.documentElement.setAttribute('data-theme', initialTheme);
+  document.documentElement.classList.remove('light', 'dark');
+  document.documentElement.classList.add(initialTheme);
+  return initialTheme;
 }
 
 function getSessionIdFromPath(): string {
   const match = window.location.pathname.match(/^\/c\/([^/]+)/);
   return match ? match[1] : '';
+}
+
+function getInitialTabFromPath(): 'chat' | 'documents' | 'evaluation' {
+  if (window.location.pathname.startsWith('/developer/evaluation') || window.location.pathname.startsWith('/evaluation')) {
+    return 'evaluation';
+  }
+  return 'chat';
 }
 
 function App() {
@@ -32,13 +47,45 @@ function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const [theme, setTheme] = useState<ThemeType>(getInitialTheme);
-  const [activeTab, setActiveTab] = useState<'chat' | 'documents'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'documents' | 'evaluation'>(getInitialTabFromPath);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>(getSessionIdFromPath);
+
+  // Simple Model & Key state
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    return localStorage.getItem('noesis_model_name') || 'inbuilt';
+  });
+  const [customApiKey, setCustomApiKey] = useState<string>(() => {
+    return localStorage.getItem('noesis_api_key') || '';
+  });
+  const [customBaseUrl, setCustomBaseUrl] = useState<string>(() => {
+    return localStorage.getItem('noesis_base_url') || '';
+  });
+  const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
+
+  const handleSaveModel = (modelName: string, apiKey: string, baseUrl?: string) => {
+    setSelectedModel(modelName);
+    setCustomApiKey(apiKey);
+    setCustomBaseUrl(baseUrl || '');
+    localStorage.setItem('noesis_model_name', modelName);
+    if (apiKey) localStorage.setItem('noesis_api_key', apiKey);
+    else localStorage.removeItem('noesis_api_key');
+    if (baseUrl) localStorage.setItem('noesis_base_url', baseUrl);
+    else localStorage.removeItem('noesis_base_url');
+  };
+
+  const handleResetToInbuilt = () => {
+    setSelectedModel('inbuilt');
+    setCustomApiKey('');
+    setCustomBaseUrl('');
+    localStorage.removeItem('noesis_model_name');
+    localStorage.removeItem('noesis_api_key');
+    localStorage.removeItem('noesis_base_url');
+  };
 
   const loadSessions = useCallback(async () => {
     try {
@@ -58,11 +105,14 @@ function App() {
     }
   }, []);
 
-  // Listen to browser Back / Forward popstate events for /c/:sessionId routing
   useEffect(() => {
     const handlePopState = () => {
-      const pathSessionId = getSessionIdFromPath();
-      setCurrentSessionId(pathSessionId);
+      if (window.location.pathname.startsWith('/developer/evaluation') || window.location.pathname.startsWith('/evaluation')) {
+        setActiveTab('evaluation');
+        return;
+      }
+      const sid = getSessionIdFromPath();
+      setCurrentSessionId(sid);
       setActiveTab('chat');
     };
     window.addEventListener('popstate', handlePopState);
@@ -70,33 +120,25 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const verifySession = async () => {
+    const initAuth = async () => {
       try {
         const user = await authApi.getMe();
         if (user) {
-          setIsAuthenticated(true);
           setUserProfile(user);
+          setIsAuthenticated(true);
           loadSessions();
           loadDocuments();
         } else {
           setIsAuthenticated(false);
-          setUserProfile(null);
         }
-      } catch {
+      } catch (err) {
         setIsAuthenticated(false);
-        setUserProfile(null);
       } finally {
         setIsAuthChecking(false);
       }
     };
-    verifySession();
+    initAuth();
   }, [loadSessions, loadDocuments]);
-
-  useEffect(() => {
-    if (isAuthenticated && activeTab === 'documents') {
-      loadDocuments();
-    }
-  }, [activeTab, isAuthenticated, loadDocuments]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -130,6 +172,21 @@ function App() {
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
   }, []);
 
+  const handleTabSwitch = (tab: 'chat' | 'documents' | 'evaluation') => {
+    setActiveTab(tab);
+    if (tab === 'evaluation') {
+      window.history.pushState(null, '', '/developer/evaluation');
+    } else if (tab === 'documents') {
+      window.history.pushState(null, '', '/');
+    } else {
+      if (currentSessionId) {
+        window.history.pushState(null, '', '/c/' + currentSessionId);
+      } else {
+        window.history.pushState(null, '', '/');
+      }
+    }
+  };
+
   const handleLogin = (user: UserProfile) => {
     setUserProfile(user);
     setIsAuthenticated(true);
@@ -147,28 +204,28 @@ function App() {
     setIsAuthenticated(false);
     setUserProfile(null);
     setChatSessions([]);
+    setDocuments([]);
     setCurrentSessionId('');
     window.history.pushState(null, '', '/');
   };
 
   const handleToggleTheme = () => {
-    const nextTheme: ThemeType = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    localStorage.setItem('app-theme', nextTheme);
+    setTheme(prev => {
+      const nextTheme = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('app-theme', nextTheme);
+      document.documentElement.setAttribute('data-theme', nextTheme);
+      document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.classList.add(nextTheme);
+      return nextTheme;
+    });
   };
 
-  // Switch to session with URL routing
   const handleSelectSession = (id: string) => {
     setCurrentSessionId(id);
     setActiveTab('chat');
-    if (id) {
-      window.history.pushState(null, '', `/c/${id}`);
-    } else {
-      window.history.pushState(null, '', '/');
-    }
+    window.history.pushState(null, '', id ? ('/c/' + id) : '/');
   };
 
-  // "New Chat" clears current session ID and sets URL to '/'
   const handleNewSession = () => {
     setCurrentSessionId('');
     setActiveTab('chat');
@@ -184,6 +241,7 @@ function App() {
       return [{ id: newSession.id, title: newSession.title || 'New Conversation' }, ...prev];
     });
     setCurrentSessionId(newSession.id);
+    window.history.pushState(null, '', '/c/' + newSession.id);
   }, []);
 
   const handleSessionTitleUpdated = useCallback((sessionId: string, title: string) => {
@@ -201,14 +259,13 @@ function App() {
     evictSessionCache(id);
     setChatSessions(prev => prev.filter(s => s.id !== id));
     if (currentSessionId === id) {
-      setCurrentSessionId('');
-      window.history.pushState(null, '', '/');
+      handleNewSession();
     }
   };
 
   if (isAuthChecking) {
     return (
-      <div className={`app-root ${theme}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <div className={'app-root ' + theme} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
           <div style={{ width: '32px', height: '32px', border: '3px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spinRing 0.8s linear infinite' }} />
           <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Verifying session...</span>
@@ -218,19 +275,38 @@ function App() {
   }
 
   return (
-    <div className={`app-root ${theme}`}>
+    <div className={'app-root ' + theme}>
       {!isAuthenticated && (
         <AuthModal onLogin={handleLogin} />
       )}
 
-      <div className={`app-workspace-container ${!isAuthenticated ? 'workspace-inert' : ''}`}>
+      {/* Developer Team Invite Acceptance Gateway */}
+      <AcceptInviteModal
+        userProfile={userProfile}
+        onInviteAccepted={async () => {
+          try {
+            const updated = await authApi.getMe();
+            if (updated) {
+              setUserProfile(updated);
+            }
+          } catch (e) {
+            console.error(e);
+          }
+          setActiveTab('evaluation');
+          window.history.pushState(null, '', '/developer/evaluation');
+        }}
+      />
+
+      <div className={'app-workspace-container ' + (!isAuthenticated ? 'workspace-inert' : '')}>
         <Sidebar 
           chatSessions={chatSessions}
           currentSessionId={currentSessionId}
           onSelectSession={handleSelectSession}
           onNewSession={handleNewSession}
           onDeleteSession={handleDeleteSession}
-          onOpenDocManager={() => setActiveTab('documents')}
+          onOpenDocManager={() => handleTabSwitch('documents')}
+          onOpenEvaluations={() => handleTabSwitch('evaluation')}
+          activeTab={activeTab}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
@@ -239,6 +315,8 @@ function App() {
           onToggleTheme={handleToggleTheme}
           onLogout={handleLogout}
           userProfile={userProfile}
+          selectedModel={selectedModel}
+          onOpenModelModal={() => setIsModelModalOpen(true)}
         />
 
         <main className="app-main-viewport">
@@ -246,8 +324,9 @@ function App() {
             theme={theme}
             onToggleTheme={handleToggleTheme}
             activeTab={activeTab}
-            setActiveTab={setActiveTab}
+            setActiveTab={handleTabSwitch}
             docCount={documents.length}
+            userProfile={userProfile}
           />
 
           <div className="app-content-stage">
@@ -257,16 +336,25 @@ function App() {
                 onSelectSession={handleSelectSession}
                 onSessionCreated={handleSessionCreated}
                 onSessionTitleUpdated={handleSessionTitleUpdated}
-                onNavigateToIngestion={() => setActiveTab('documents')}
+                onNavigateToIngestion={() => handleTabSwitch('documents')}
                 docCount={documents.length}
                 documents={documents}
                 onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
                 userProfile={userProfile}
+                selectedModel={selectedModel}
+                customApiKey={customApiKey}
+                customBaseUrl={customBaseUrl}
+                onOpenModelModal={() => setIsModelModalOpen(true)}
               />
-            ) : (
+            ) : activeTab === 'documents' ? (
               <IngestionHub 
                 documents={documents}
                 setDocuments={setDocuments}
+              />
+            ) : (
+              <DeveloperEvaluationDashboard 
+                userProfile={userProfile}
+                onNavigateToChat={() => handleTabSwitch('chat')}
               />
             )}
           </div>
@@ -286,9 +374,20 @@ function App() {
         }}
         chatSessions={chatSessions}
         onOpenDocManager={() => {
-          setActiveTab('documents');
+          handleTabSwitch('documents');
           setIsCommandPaletteOpen(false);
         }}
+      />
+
+      {/* Simple Model Name & API Key Modal */}
+      <SimpleModelModal
+        isOpen={isModelModalOpen}
+        onClose={() => setIsModelModalOpen(false)}
+        selectedModel={selectedModel}
+        apiKey={customApiKey}
+        baseUrl={customBaseUrl}
+        onSave={handleSaveModel}
+        onResetToInbuilt={handleResetToInbuilt}
       />
     </div>
   );

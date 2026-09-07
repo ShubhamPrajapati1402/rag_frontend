@@ -1,20 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
+  Cpu, 
   SquarePen, 
   FolderOpen, 
   Search, 
   Trash2, 
-  PanelLeftClose, 
-  PanelLeftOpen, 
+  PanelLeftOpen,
+  PanelLeftClose,
   Settings, 
   LogOut, 
   HelpCircle, 
   Sun, 
   Moon, 
-  X,
-  Keyboard,
-  Check,
-  ChevronsUpDown
+  X, 
+  Keyboard, 
+  Check, 
+  ChevronsUpDown, 
+  ShieldCheck,
+  Brain
 } from 'lucide-react';
 import { ChatSession, ThemeType, UserProfile } from '../../types';
 import './Sidebar.css';
@@ -26,6 +29,8 @@ interface SidebarProps {
   onNewSession: () => void;
   onDeleteSession: (id: string) => void;
   onOpenDocManager: () => void;
+  onOpenEvaluations?: () => void;
+  activeTab?: 'chat' | 'documents' | 'evaluation';
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   onOpenCommandPalette: () => void;
@@ -34,6 +39,8 @@ interface SidebarProps {
   theme: ThemeType;
   onLogout: () => void;
   userProfile?: UserProfile | null;
+  onOpenModelModal?: () => void;
+  selectedModel?: string;
 }
 
 export default function Sidebar({ 
@@ -43,6 +50,8 @@ export default function Sidebar({
   onNewSession, 
   onDeleteSession,
   onOpenDocManager,
+  onOpenEvaluations,
+  activeTab = 'chat',
   isCollapsed,
   onToggleCollapse,
   onOpenCommandPalette,
@@ -50,7 +59,9 @@ export default function Sidebar({
   onToggleTheme,
   theme,
   onLogout,
-  userProfile
+  userProfile,
+  onOpenModelModal,
+  selectedModel = 'inbuilt'
 }: SidebarProps) {
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
   const [sessionToDelete, setSessionToDelete] = useState<ChatSession | null>(null);
@@ -88,51 +99,79 @@ export default function Sidebar({
   return (
     <>
       <aside className={`chatgpt-sidebar-root ${isCollapsed ? 'collapsed' : ''}`}>
+        {/* Top Section */}
         {isCollapsed ? (
           /* Collapsed State: Single Clean Vertical Stack of Icon Buttons */
           <div className="collapsed-vertical-stack">
             <button 
               className="sidebar-action-btn" 
               onClick={onToggleCollapse} 
-              title="Expand Sidebar (Ctrl+B)"
+              data-tooltip="Expand sidebar (Ctrl+B)"
             >
               <PanelLeftOpen size={17} />
             </button>
             <button 
               className="sidebar-action-btn" 
               onClick={onNewSession} 
-              title="New Chat"
+              data-tooltip="New chat"
             >
               <SquarePen size={17} />
             </button>
             <button 
               className="sidebar-action-btn" 
               onClick={onOpenCommandPalette} 
-              title="Search (Ctrl+K)"
+              data-tooltip="Search (Ctrl+K)"
             >
               <Search size={17} />
             </button>
             <button 
-              className="sidebar-action-btn" 
+              className={`sidebar-action-btn ${activeTab === 'documents' ? 'is-active' : ''}`} 
               onClick={onOpenDocManager} 
-              title={`Projects (${docCount})`}
+              data-tooltip={`Projects (${docCount})`}
             >
               <FolderOpen size={17} />
             </button>
+
+            {userProfile?.is_superuser && onOpenEvaluations && (
+              <button 
+                className={`sidebar-action-btn ${activeTab === 'evaluation' ? 'is-active' : ''}`} 
+                onClick={onOpenEvaluations} 
+                data-tooltip="RAG benchmarks (Developer)"
+              >
+                <ShieldCheck size={17} className="text-indigo-400" />
+              </button>
+            )}
           </div>
         ) : (
           /* Expanded State: Full ChatGPT-style Layout */
           <>
             {/* Top Header Row */}
             <div className="sidebar-brand-header">
-              <div className="sidebar-brand-left">
+              <div className="sidebar-brand-left" onClick={onNewSession} role="button" title="Noesis AI">
+                <div className="sidebar-neural-emblem" aria-hidden="true">
+                  <div className="sidebar-neural-sphere">
+                    <Brain size={10} className="sidebar-neural-brain" />
+                  </div>
+                  <div className="sidebar-gyro-ring gyro-eq">
+                    <div className="planet-revolver rev-eq"><div className="orbit-planet" /></div>
+                  </div>
+                  <div className="sidebar-gyro-ring gyro-pos">
+                    <div className="planet-revolver rev-pos"><div className="orbit-planet" /></div>
+                  </div>
+                  <div className="sidebar-gyro-ring gyro-neg">
+                    <div className="planet-revolver rev-neg"><div className="orbit-planet" /></div>
+                  </div>
+                  <div className="sidebar-gyro-ring gyro-polar">
+                    <div className="planet-revolver rev-polar"><div className="orbit-planet" /></div>
+                  </div>
+                </div>
                 <span className="sidebar-brand-title">Noesis<span className="brand-reg">®</span></span>
               </div>
               <div className="brand-header-actions">
-                <button 
-                  className="sidebar-action-btn" 
-                  onClick={onToggleCollapse} 
-                  title="Collapse Sidebar (Ctrl+B)"
+                <button
+                  className="sidebar-action-btn"
+                  onClick={onToggleCollapse}
+                  data-tooltip="Collapse sidebar (Ctrl+B)"
                 >
                   <PanelLeftClose size={17} />
                 </button>
@@ -143,7 +182,7 @@ export default function Sidebar({
             <div 
               className="sidebar-search-bar"
               onClick={onOpenCommandPalette}
-              title="Search chats (Ctrl+K)"
+              data-tooltip="Search chats (Ctrl+K)"
             >
               <Search size={14} className="sidebar-search-icon" />
               <span className="sidebar-search-placeholder">Search</span>
@@ -160,11 +199,25 @@ export default function Sidebar({
 
             {/* Navigation Section Tabs */}
             <div className="sidebar-nav-section">
-              <button className="sidebar-nav-item" onClick={onOpenDocManager}>
+              <button 
+                className={`sidebar-nav-item ${activeTab === 'documents' ? 'is-active' : ''}`} 
+                onClick={onOpenDocManager}
+              >
                 <FolderOpen size={15} />
                 <span className="nav-item-label">Projects</span>
                 <span className="nav-item-badge">{docCount}</span>
               </button>
+
+              {userProfile?.is_superuser && onOpenEvaluations && (
+                <button 
+                  className={`sidebar-nav-item ${activeTab === 'evaluation' ? 'is-active' : ''}`} 
+                  onClick={onOpenEvaluations}
+                >
+                  <ShieldCheck size={15} className="text-indigo-400" />
+                  <span className="nav-item-label">RAG Benchmarks</span>
+                  <span className="sidebar-dev-tag">DEV</span>
+                </button>
+              )}
             </div>
           </>
         )}
@@ -249,7 +302,7 @@ export default function Sidebar({
                                   e.stopPropagation();
                                   setSessionToDelete(session);
                                 }}
-                                title="Delete chat"
+                                data-tooltip="Delete chat"
                               >
                                 <Trash2 size={13} />
                               </button>
@@ -270,7 +323,7 @@ export default function Sidebar({
           <button 
             className="user-profile-row-btn"
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-            title="User Profile"
+            data-tooltip="User profile"
           >
             <div className="user-avatar-wrap">
               <div className="user-avatar-circle">
@@ -321,6 +374,21 @@ export default function Sidebar({
               </div>
 
               <div className="dropdown-divider"></div>
+
+              <button 
+                type="button"
+                className="dropdown-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsProfileMenuOpen(false);
+                  if (onOpenModelModal) {
+                    onOpenModelModal();
+                  }
+                }}
+              >
+                <Cpu size={15} className="text-indigo-400" />
+                <span>AI Model & API Key</span>
+              </button>
 
               <button 
                 className="dropdown-menu-item"
@@ -383,6 +451,25 @@ export default function Sidebar({
             </div>
 
             <div className="settings-modal-body">
+              <div className="settings-section-title">AI Model & API Key</div>
+              <div className="settings-row-item">
+                <div>
+                  <div className="settings-label">Active Model</div>
+                  <div className="settings-sublabel">
+                    {selectedModel && selectedModel !== 'inbuilt' ? selectedModel : 'Inbuilt Model (Default Gemini Flash / Groq)'}
+                  </div>
+                </div>
+                <button 
+                  className="settings-toggle-btn" 
+                  onClick={() => {
+                    setIsSettingsOpen(false);
+                    if (onOpenModelModal) onOpenModelModal();
+                  }}
+                >
+                  Change Model
+                </button>
+              </div>
+
               <div className="settings-section-title">Theme & Appearance</div>
               <div className="settings-row-item">
                 <div>

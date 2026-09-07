@@ -104,7 +104,8 @@ export const authApi = {
         name: data.full_name || data.name || (data.email ? data.email.split('@')[0] : 'User'),
         email: data.email,
         avatarUrl: data.avatar_url || data.picture || '',
-        picture: data.avatar_url || data.picture || ''
+        picture: data.avatar_url || data.picture || '',
+        is_superuser: Boolean(data.is_superuser)
       };
     } catch {
       return null;

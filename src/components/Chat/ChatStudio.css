@@ -8,6 +8,41 @@
   background-color: var(--bg-app);
 }
 
+/* Rounded, animated tooltips preserve the existing chat interactions. */
+.chatgpt-canvas-root [data-tooltip] {
+  position: relative;
+}
+
+.chatgpt-canvas-root [data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 60;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: min(300px, calc(100vw - 32px));
+  padding: 8px 10px;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.16));
+  border-radius: 9px;
+  background: var(--bg-surface, #212121);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  color: var(--text-primary, #ffffff);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.chatgpt-canvas-root [data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 /* Full-width scrollable pane - scrollbar is positioned at the far right edge of the screen */
 .chatgpt-scroll-area {
   flex: 1;
@@ -551,12 +586,14 @@
 }
 
 /* ==========================================================================
-   CONVERSATION MESSAGES
+   CONVERSATION MESSAGES & THREAD LAYOUT
    ========================================================================== */
 
 .chatgpt-msg-row {
   display: flex;
   width: 100%;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .chatgpt-msg-row.user {
@@ -567,53 +604,54 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
-  max-width: 80%;
+  gap: 2px;
+  max-width: 78%;
 }
 
 .user-message-bubble {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  border-radius: var(--radius-xl);
-  padding: 8px 14px;
-  width: 100%;
+  background: var(--bg-surface, #242424);
+  color: var(--text-primary, #f5f5f5);
+  border-radius: 18px 18px 4px 18px;
+  padding: 8px 15px;
+  width: fit-content;
   font-size: 13.5px;
   line-height: 1.5;
   word-break: break-word;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .user-message-bubble {
+  background: #f0f0f0;
+  color: #171717;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .user-actions-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  opacity: 0.85;
-  transition: opacity 0.15s ease;
-  padding-right: 6px;
-}
-
-.user-message-group:hover .user-actions-row,
-.chatgpt-msg-row.user:hover .user-actions-row {
-  opacity: 1;
+  gap: 5px;
+  padding-right: 4px;
+  margin-top: 1px;
 }
 
 .msg-timestamp {
-  font-size: 11px;
-  color: var(--text-muted, #8e8e8e);
+  font-size: 10.5px;
+  color: var(--text-tertiary, #737373);
   font-weight: 400;
   user-select: none;
   letter-spacing: 0.01em;
 }
 
 [data-theme="light"] .msg-timestamp {
-  color: #71717a;
+  color: #8e8e93;
 }
 
 .user-copy-btn {
-  padding: 4px 6px;
-  border-radius: 6px;
+  padding: 2px 4px;
+  border-radius: 4px;
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: var(--text-tertiary, #737373);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -622,60 +660,16 @@
 }
 
 .user-copy-btn:hover {
-  color: var(--text-primary);
-  background: var(--bg-surface-hover);
+  color: var(--text-primary, #ffffff);
+  background: var(--bg-surface-hover, rgba(255, 255, 255, 0.08));
 }
 
 .ai-message-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  align-items: flex-start;
+  text-align: left;
   width: 100%;
-}
-
-/* Source Chips */
-.sources-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
-.source-badge-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
-  color: var(--text-primary);
-  font-size: 11.5px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.source-badge-chip:hover {
-  background: var(--bg-surface-hover);
-  border-color: var(--border-medium);
-}
-
-.source-icon {
-  color: var(--text-muted);
-  display: flex;
-}
-
-.source-name {
-  max-width: 200px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.source-match {
-  font-size: 10px;
-  color: var(--text-secondary);
 }
 
 /* AI Message Typography */
@@ -730,85 +724,180 @@
   font-size: 12px;
 }
 
-/* Markdown Tables (GFM) */
-.ai-markdown-body table,
-table {
+/* Clean Native Hyperlinks (No Box, No Border) */
+.chat-link-highlight,
+.ai-markdown-body a {
+  color: #60a5fa !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(96, 165, 250, 0.45);
+  font-weight: 500;
+  word-break: break-all;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  vertical-align: baseline;
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+.chat-link-highlight:hover,
+.ai-markdown-body a:hover {
+  color: #93c5fd !important;
+  text-decoration-color: #93c5fd;
+  background: none !important;
+}
+
+[data-theme="light"] .chat-link-highlight,
+[data-theme="light"] .ai-markdown-body a {
+  color: #2563eb !important;
+  text-decoration-color: rgba(37, 99, 235, 0.4);
+}
+
+[data-theme="light"] .chat-link-highlight:hover,
+[data-theme="light"] .ai-markdown-body a:hover {
+  color: #1d4ed8 !important;
+  text-decoration-color: #1d4ed8;
+}
+
+.link-ext-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+/* Sleek Perplexity-Style Numbered Citation Pills */
+.sources-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  align-self: flex-start;
   width: 100%;
-  border-collapse: collapse;
-  margin: 1.25rem 0;
-  font-size: 14px;
-  border-radius: var(--radius-sm, 8px);
-  overflow: hidden;
-  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.14));
 }
 
-.ai-markdown-body th,
-.ai-markdown-body td,
-th,
-td {
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
-  padding: 9px 14px;
-  text-align: left;
-  line-height: 1.5;
+.perplexity-source-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 5px;
+  background: var(--bg-surface, #212121);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 9999px;
+  color: var(--text-secondary, #cccccc);
+  font-size: 11.5px;
+  font-weight: 450;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
-.ai-markdown-body th,
-th {
-  background-color: var(--bg-surface-active, rgba(255, 255, 255, 0.08));
+.perplexity-source-pill:hover {
+  background: var(--bg-surface-hover, #2d2d2d);
+  border-color: rgba(99, 102, 241, 0.35);
+  color: var(--text-primary, #ffffff);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="light"] .perplexity-source-pill {
+  background: #f4f4f5;
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #3f3f46;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .perplexity-source-pill:hover {
+  background: #e4e4e7;
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #18181b;
+}
+
+.source-num-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary, #a3a3a3);
+  font-size: 9.5px;
   font-weight: 600;
-  color: var(--text-primary);
-  font-family: var(--font-sans, sans-serif);
+  line-height: 1;
 }
 
-.ai-markdown-body tr:nth-child(even),
-tr:nth-child(even) {
-  background-color: rgba(255, 255, 255, 0.025);
+[data-theme="light"] .source-num-badge {
+  background: rgba(0, 0, 0, 0.08);
+  color: #52525b;
 }
 
-[data-theme="light"] .ai-markdown-body tr:nth-child(even),
-[data-theme="light"] tr:nth-child(even) {
-  background-color: rgba(0, 0, 0, 0.025);
+.source-file-icon {
+  color: var(--text-tertiary, #737373);
+  flex-shrink: 0;
 }
 
-.ai-markdown-body tr:hover,
-tr:hover {
-  background-color: rgba(255, 255, 255, 0.04);
+.source-name-text {
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-[data-theme="light"] .ai-markdown-body tr:hover,
-[data-theme="light"] tr:hover {
-  background-color: rgba(0, 0, 0, 0.04);
+.source-page-text {
+  font-size: 10.5px;
+  color: var(--text-tertiary, #737373);
 }
 
-/* Actions */
+.source-icon {
+  color: var(--text-tertiary, #737373);
+  flex-shrink: 0;
+}
+
+.source-name {
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.source-sub {
+  font-size: 11px;
+  color: var(--text-tertiary, #737373);
+}
+
+/* AI Actions Row */
 .ai-actions-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+  gap: 4px;
+  margin-top: 4px;
 }
 
 .action-icon-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 30px;
-  height: 30px;
-  border-radius: var(--radius-pill);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill, 9999px);
   background: transparent;
   border: 1px solid transparent;
-  color: var(--text-muted);
+  color: var(--text-tertiary, #737373);
   cursor: pointer;
-  padding: 0 6px;
+  padding: 0;
   transition: all 0.18s ease;
 }
 
 .action-icon-btn:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  background: var(--bg-surface, #262626);
+  color: var(--text-primary, #ffffff);
 }
 
-/* Compact Active "Copied" Icon Feedback (No Green) */
 .action-icon-btn.is-copied,
 .user-copy-btn.is-copied {
   color: var(--accent-primary, #6366f1) !important;
@@ -821,16 +910,167 @@ tr:hover {
   color: var(--accent-primary, #6366f1) !important;
 }
 
-/* Thinking indicator */
-.chatgpt-thinking-pill {
+/* ==========================================================================
+   DYNAMIC NEURAL REASONING BEAM (FUTURISTIC WAVEFORM & SHIMMER)
+   ========================================================================== */
+
+.neural-reasoning-beam {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: var(--bg-surface);
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  color: var(--text-secondary);
+  padding: 4px 0;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 8px;
+}
+
+/* Pulsing Glowing Core Orb */
+.neural-beam-orb {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.orb-inner-core {
+  width: 7px;
+  height: 7px;
+  background: #818cf8;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #818cf8;
+}
+
+.orb-pulse-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(129, 140, 248, 0.8);
+  animation: orbRingExpand 1.6s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+@keyframes orbRingExpand {
+  0% {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Harmonic Equalizer Waveform Bars */
+.neural-wave-bars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.wave-bar {
+  width: 2px;
+  background: linear-gradient(to top, #6366f1, #c084fc);
+  border-radius: 2px;
+  animation: waveBarBounce 1.1s ease-in-out infinite alternate;
+}
+
+.wave-bar.bar-1 { height: 6px; animation-delay: 0.1s; }
+.wave-bar.bar-2 { height: 11px; animation-delay: 0.3s; }
+.wave-bar.bar-3 { height: 8px; animation-delay: 0.2s; }
+.wave-bar.bar-4 { height: 12px; animation-delay: 0.4s; }
+
+@keyframes waveBarBounce {
+  0% {
+    transform: scaleY(0.35);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scaleY(1.15);
+    opacity: 1;
+  }
+}
+
+/* Holographic Node Tag */
+.reasoning-node-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #c7d2fe;
+  background: rgba(99, 102, 241, 0.22);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  padding: 2px 7px;
+  border-radius: 6px;
+  line-height: 1.2;
+}
+
+[data-theme="light"] .reasoning-node-tag {
+  color: #4338ca;
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.reasoning-node-icon {
+  display: flex;
+  color: #a5b4fc;
+}
+
+/* Shimmering Dynamic Text */
+.reasoning-shimmer-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #f1f5f9;
+  letter-spacing: 0.01em;
+  background: linear-gradient(90deg, #ffffff 0%, #a5b4fc 40%, #ffffff 80%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textShimmer 2.5s linear infinite;
+}
+
+[data-theme="light"] .reasoning-shimmer-text {
+  background: linear-gradient(90deg, #1e293b 0%, #6366f1 40%, #1e293b 80%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes textShimmer {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+/* Typing cursor */
+.typing-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  background: var(--accent-primary, #6366f1);
+  margin-left: 3px;
+  vertical-align: -1px;
+  border-radius: 1px;
+  animation: cursorBlink 0.9s infinite;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
 /* ==========================================================================
@@ -1122,90 +1362,7 @@ tr:hover {
   }
 }
 
-/* ==========================================================================
-   STATEFUL LANGGRAPH RAG LIVE PIPELINE NODE STYLES
-   ========================================================================== */
-
-.langgraph-node-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-  animation: pulseGlow 2.4s ease-in-out infinite;
-}
-
-@keyframes pulseGlow {
-  0%, 100% {
-    border-color: var(--border-medium);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-  }
-  50% {
-    border-color: rgba(99, 102, 241, 0.5);
-    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.25);
-  }
-}
-
-.node-spinner-ring {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(99, 102, 241, 0.3);
-  border-top-color: #6366f1;
-  border-radius: 50%;
-  animation: spinRing 0.8s linear infinite;
-}
-
-@keyframes spinRing {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.node-badge-tag {
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  padding: 2px 7px;
-  border-radius: 4px;
-  background: rgba(99, 102, 241, 0.15);
-  color: #818cf8;
-}
-
-.node-status-text {
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
-/* Sources section */
-.sources-container {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.sources-heading {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-}
-
-.source-badge-chip .source-sub {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
+/* Error Banner */
 .chat-error-banner {
   display: flex;
   align-items: center;
@@ -1213,9 +1370,23 @@ tr:hover {
   padding: 10px 16px;
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-lg, 12px);
   color: #f87171;
   font-size: 13.5px;
   margin-top: 8px;
 }
 
+/* Model attribution badge in message footer */
+.msg-model-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.02em;
+}

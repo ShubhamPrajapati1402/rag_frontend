@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { 
@@ -19,7 +19,8 @@ import {
   GitFork,
   Database,
   CheckCheck,
-  HelpCircle
+  HelpCircle,
+  ExternalLink
 } from 'lucide-react';
 import { DocumentItem, ChatMessage, SourceCitation, UserProfile } from '../../types';
 import { chatApi } from '../../services/chatApi';
@@ -46,6 +47,41 @@ export function formatISTDateTime(dateInput?: string | number | Date): string {
   return `${formatted} IST`;
 }
 
+// Normalizes markdown formatting (e.g. table pipes)
+export function formatMarkdownContent(rawText: string): string {
+  if (!rawText) return '';
+  return rawText.replace(/\|\|\s*\|?/g, '|\n| ');
+}
+
+// Custom Markdown Components for external links opening in a new tab
+const markdownComponents = {
+  a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+    let validHref = href || '';
+    if (
+      validHref &&
+      !validHref.startsWith('http://') &&
+      !validHref.startsWith('https://') &&
+      !validHref.startsWith('mailto:') &&
+      !validHref.startsWith('tel:') &&
+      !validHref.startsWith('#')
+    ) {
+      validHref = `https://${validHref}`;
+    }
+    return (
+      <a
+        href={validHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="chat-link-highlight"
+        {...props}
+      >
+        {children}
+        <ExternalLink size={11} className="link-ext-icon" />
+      </a>
+    );
+  }
+};
+
 interface ChatStudioProps {
   currentSessionId: string;
   onSelectSession: (id: string) => void;
@@ -56,6 +92,10 @@ interface ChatStudioProps {
   documents?: DocumentItem[];
   onOpenCommandPalette: () => void;
   userProfile?: UserProfile | null;
+  selectedModel?: string;
+  customApiKey?: string;
+  customBaseUrl?: string;
+  onOpenModelModal?: () => void;
 }
 
 // Fast in-memory & localStorage session cache (0ms instant route switching, stale-while-revalidate)
@@ -107,7 +147,11 @@ export default function ChatStudio({
   docCount, 
   documents = [], 
   onOpenCommandPalette,
-  userProfile
+  userProfile,
+  selectedModel = 'inbuilt',
+  customApiKey = '',
+  customBaseUrl = '',
+  onOpenModelModal
 }: ChatStudioProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     return getCachedSessionMessages(currentSessionId) || [];
@@ -122,7 +166,7 @@ export default function ChatStudio({
   const [activeSource, setActiveSource] = useState<SourceCitation | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
 
-  // 360° Interactive Cursor / Touch Rotation Physics
+  // 360Â° Interactive Cursor / Touch Rotation Physics
   const [rotX, setRotX] = useState<number>(0);
   const [rotY, setRotY] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -215,7 +259,7 @@ export default function ChatStudio({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onOpenCommandPalette]);
 
-  // 360° Interactive Rotation Handlers (Mouse & Touch)
+  // 360Â° Interactive Rotation Handlers (Mouse & Touch)
   const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDragging(true);
     const clientX = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
@@ -469,6 +513,9 @@ export default function ChatStudio({
       await chatApi.streamChat({
         question: queryToSend,
         sessionId: activeSession || null,
+        modelName: selectedModel === 'inbuilt' ? undefined : selectedModel,
+        apiKey: customApiKey || undefined,
+        modelProvider: selectedModel === 'inbuilt' ? 'inbuilt' : undefined,
         signal: controller.signal,
         onMetadata: (meta) => {
           if (meta.session_id) {
@@ -588,12 +635,12 @@ export default function ChatStudio({
         ) : messages.length === 0 && !isStreaming ? (
           /* Symmetrical 4-Plane Gyroscopic Solar System */
           <div className="chatgpt-hero-empty anim-fade-in">
-            {/* 3D Multi-Shell Solar Gyroscopic System with 360° Drag & Touch Control */}
+            {/* 3D Multi-Shell Solar Gyroscopic System with 360Â° Drag & Touch Control */}
             <div 
               className={`neural-3d-scene ${isDragging ? 'is-dragging' : ''}`}
               onMouseDown={handlePointerDown}
               onTouchStart={handlePointerDown}
-              title="Click and drag with mouse or touch to rotate 360° in 3D"
+              data-tooltip="Click and drag with mouse or touch to rotate 360Â° in 3D"
             >
               {/* Central Volumetric 3D Sphere (Static) */}
               <div className="volumetric-3d-sphere">
@@ -619,7 +666,7 @@ export default function ChatStudio({
                     </div>
                   </div>
 
-                  {/* 2. +45° Tilted Ring */}
+                  {/* 2. +45Â° Tilted Ring */}
                   <div className="gyro-3d-ring gyro-tilt-pos">
                     <div className="planet-revolver rev-pos">
                       <div className="orbit-planet">
@@ -630,7 +677,7 @@ export default function ChatStudio({
                     </div>
                   </div>
 
-                  {/* 3. -45° Tilted Ring */}
+                  {/* 3. -45Â° Tilted Ring */}
                   <div className="gyro-3d-ring gyro-tilt-neg">
                     <div className="planet-revolver rev-neg">
                       <div className="orbit-planet">
@@ -641,7 +688,7 @@ export default function ChatStudio({
                     </div>
                   </div>
 
-                  {/* 4. 90° Polar Ring */}
+                  {/* 4. 90Â° Polar Ring */}
                   <div className="gyro-3d-ring gyro-polar-90">
                     <div className="planet-revolver rev-polar">
                       <div className="orbit-planet">
@@ -661,7 +708,7 @@ export default function ChatStudio({
             <div className="hero-greeting-container anim-slide-up">
               <h1 className="chatgpt-hero-prompt">What can I help with?</h1>
               <span className="hero-salutation-text">
-                {greetingInfo.timeGreeting}, {greetingInfo.displayName} • Select a prompt below or ask anything
+                {greetingInfo.timeGreeting}, {greetingInfo.displayName} â€¢ Select a prompt below or ask anything
               </span>
             </div>
 
@@ -697,7 +744,7 @@ export default function ChatStudio({
                     <button 
                       className={`action-icon-btn user-copy-btn ${copiedId === msg.id ? 'is-copied' : ''}`} 
                       onClick={() => copyText(msg.content, msg.id)}
-                      title="Copy question"
+                      data-tooltip="Copy question"
                     >
                       {copiedId === msg.id ? <Check size={12} className="text-accent" /> : <Copy size={12} />}
                     </button>
@@ -707,52 +754,51 @@ export default function ChatStudio({
                 <div className="ai-message-card anim-slide-up">
                   {/* Formatted Content */}
                   <div className="ai-markdown-body">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.content ? msg.content.replace(/\|\|\s*\|?/g, '|\n| ') : ''}
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={markdownComponents}
+                    >
+                      {formatMarkdownContent(msg.content)}
                     </ReactMarkdown>
                   </div>
 
-                  {/* Structured Citations */}
+                  {/* Sleek Numbered Citation Pills */}
                   {msg.sources && msg.sources.length > 0 && (
                     <div className="sources-container">
-                      <div className="sources-heading">Source References ({msg.sources.length})</div>
-                      <div className="sources-chip-row">
-                        {msg.sources.map((src, sIdx) => (
-                          <button 
-                            key={src.id || sIdx} 
-                            className="source-badge-chip"
-                            onClick={() => setActiveSource(src)}
-                            title="Click to view extracted source passage"
-                          >
-                            <span className="source-icon">
-                              {src.fileType === 'Excel' || src.fileType === 'CSV' ? (
-                                <FileSpreadsheet size={13} />
-                              ) : (
-                                <FileText size={13} />
-                              )}
-                            </span>
-                            <span className="source-name">{src.fileName}</span>
-                            {src.page && <span className="source-sub">• {src.page}</span>}
-                            {src.sheet && <span className="source-sub">• {src.sheet}</span>}
-                            {src.similarity && <span className="source-match">{src.similarity}</span>}
-                          </button>
-                        ))}
-                      </div>
+                      {msg.sources.map((src, sIdx) => (
+                        <button 
+                          key={src.id || sIdx} 
+                          className="perplexity-source-pill"
+                          onClick={() => setActiveSource(src)}
+                          data-tooltip={`View passage from ${src.fileName}`}
+                        >
+                          <span className="source-num-badge">{sIdx + 1}</span>
+                          <FileText size={11} className="source-file-icon" />
+                          <span className="source-name-text">{src.fileName}</span>
+                          {src.page && <span className="source-page-text">â€¢ {src.page}</span>}
+                        </button>
+                      ))}
                     </div>
                   )}
 
                   {/* Action Icons */}
                   <div className="ai-actions-row">
                     <span className="msg-timestamp">{formatISTDateTime(msg.createdAt)}</span>
+                    {(msg.modelName || msg.modelProvider) && (
+                      <span className="msg-model-badge" title={`Synthesized by ${msg.modelName || msg.modelProvider}`}>
+                        <Sparkles size={11} className="inline mr-1 text-indigo-400" />
+                        {msg.modelName || msg.modelProvider}
+                      </span>
+                    )}
                     <button 
                       className={`action-icon-btn ${copiedId === msg.id ? 'is-copied' : ''}`} 
                       onClick={() => copyText(msg.content, msg.id)}
-                      title="Copy response"
+                      data-tooltip="Copy response"
                     >
                       {copiedId === msg.id ? <Check size={13} className="text-accent" /> : <Copy size={13} />}
                     </button>
-                    <button className="action-icon-btn" title="Good response"><ThumbsUp size={14} /></button>
-                    <button className="action-icon-btn" title="Bad response"><ThumbsDown size={14} /></button>
+                    <button className="action-icon-btn" data-tooltip="Good response"><ThumbsUp size={14} /></button>
+                    <button className="action-icon-btn" data-tooltip="Bad response"><ThumbsDown size={14} /></button>
                   </div>
                 </div>
               )}
@@ -764,20 +810,42 @@ export default function ChatStudio({
         {isStreaming && (
           <div className="chatgpt-msg-row ai anim-slide-up">
             <div className="ai-message-card">
-              {/* Dynamic Live LangGraph Pipeline Node Indicator */}
+              {/* Dynamic Live LangGraph Neural Pipeline Reasoning Beam */}
               {activeNodeStatus && (
-                <div className="langgraph-node-pill anim-fade-in">
-                  <div className="node-spinner-ring"></div>
-                  <span className="node-badge-tag">{activeNodeStatus.node}</span>
-                  <span className="node-status-text">{activeNodeStatus.message}</span>
+                <div className="neural-reasoning-beam anim-slide-up">
+                  <div className="neural-beam-orb">
+                    <div className="orb-pulse-ring"></div>
+                    <div className="orb-inner-core"></div>
+                  </div>
+                  
+                  <div className="neural-wave-bars">
+                    <span className="wave-bar bar-1"></span>
+                    <span className="wave-bar bar-2"></span>
+                    <span className="wave-bar bar-3"></span>
+                    <span className="wave-bar bar-4"></span>
+                  </div>
+
+                  <div className="reasoning-node-tag">
+                    <span className="reasoning-node-icon">
+                      {getNodeDisplay(activeNodeStatus.node).icon}
+                    </span>
+                    <span className="reasoning-node-name">{activeNodeStatus.node}</span>
+                  </div>
+
+                  <span className="reasoning-shimmer-text">
+                    {activeNodeStatus.message}
+                  </span>
                 </div>
               )}
 
               {/* Streaming Tokens */}
               {streamingText && (
                 <div className="ai-markdown-body">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {streamingText ? streamingText.replace(/\|\|\s*\|?/g, '|\n| ') : ''}
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {formatMarkdownContent(streamingText)}
                   </ReactMarkdown>
                   <span className="typing-cursor"></span>
                 </div>
@@ -786,27 +854,19 @@ export default function ChatStudio({
               {/* Streaming Citations */}
               {streamingCitations.length > 0 && (
                 <div className="sources-container anim-fade-in">
-                  <div className="sources-heading">Source References ({streamingCitations.length})</div>
-                  <div className="sources-chip-row">
-                    {streamingCitations.map((src, sIdx) => (
-                      <button 
-                        key={src.id || sIdx} 
-                        className="source-badge-chip"
-                        onClick={() => setActiveSource(src)}
-                      >
-                        <span className="source-icon">
-                          {src.fileType === 'Excel' || src.fileType === 'CSV' ? (
-                            <FileSpreadsheet size={13} />
-                          ) : (
-                            <FileText size={13} />
-                          )}
-                        </span>
-                        <span className="source-name">{src.fileName}</span>
-                        {src.page && <span className="source-sub">• {src.page}</span>}
-                        {src.similarity && <span className="source-match">{src.similarity}</span>}
-                      </button>
-                    ))}
-                  </div>
+                  {streamingCitations.map((src, sIdx) => (
+                    <button 
+                      key={src.id || sIdx} 
+                      className="perplexity-source-pill"
+                      onClick={() => setActiveSource(src)}
+                      data-tooltip={`View passage from ${src.fileName}`}
+                    >
+                      <span className="source-num-badge">{sIdx + 1}</span>
+                      <FileText size={11} className="source-file-icon" />
+                      <span className="source-name-text">{src.fileName}</span>
+                      {src.page && <span className="source-page-text">â€¢ {src.page}</span>}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
@@ -833,7 +893,7 @@ export default function ChatStudio({
             type="button" 
             className="input-attach-btn"
             onClick={onNavigateToIngestion}
-            title="Attach Document"
+            data-tooltip="Attach document"
           >
             <Plus size={18} />
           </button>
@@ -873,7 +933,7 @@ export default function ChatStudio({
                 <div>
                   <h4>{activeSource.fileName}</h4>
                   <span className="drawer-loc">
-                    {activeSource.page || activeSource.sheet || 'Reference Document'} {activeSource.similarity ? `• ${activeSource.similarity}` : ''}
+                    {activeSource.page || activeSource.sheet || 'Reference Document'} {activeSource.similarity ? `â€¢ ${activeSource.similarity}` : ''}
                   </span>
                 </div>
               </div>
@@ -892,3 +952,4 @@ export default function ChatStudio({
     </div>
   );
 }
+

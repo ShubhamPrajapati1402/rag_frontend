@@ -11,7 +11,7 @@
   position: relative;
   z-index: 40;
   box-sizing: border-box;
-  transition: width 0.2s ease, padding 0.2s ease;
+  transition: width 0.24s cubic-bezier(0.22, 1, 0.36, 1), padding 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 [data-theme="light"] .chatgpt-sidebar-root {
@@ -25,6 +25,27 @@
   align-items: center;
 }
 
+/* Prevent expanded content from spilling into the main pane mid-transition. */
+.chatgpt-sidebar-root:not(.collapsed) {
+  overflow-x: hidden;
+}
+
+/* Fade expanded content in as the width transition completes. Opacity-only
+   avoids shifting controls outside the sidebar while it is resizing. */
+.chatgpt-sidebar-root:not(.collapsed) .sidebar-brand-header,
+.chatgpt-sidebar-root:not(.collapsed) .sidebar-search-bar,
+.chatgpt-sidebar-root:not(.collapsed) .sidebar-action-container,
+.chatgpt-sidebar-root:not(.collapsed) .sidebar-nav-section,
+.chatgpt-sidebar-root:not(.collapsed) .sidebar-history-pane,
+.chatgpt-sidebar-root:not(.collapsed) .sidebar-bottom-profile {
+  animation: sidebarExpandedContentFade 0.16s ease-out both;
+}
+
+@keyframes sidebarExpandedContentFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .chatgpt-sidebar-root.collapsed .sidebar-bottom-profile {
   padding: 8px 0;
   display: flex;
@@ -36,6 +57,50 @@
   justify-content: center;
   width: 36px;
   height: 36px;
+}
+
+/* Rounded, app-native tooltips for sidebar controls. */
+.chatgpt-sidebar-root [data-tooltip] {
+  position: relative;
+}
+
+.chatgpt-sidebar-root [data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 100;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: min(240px, calc(100vw - 32px));
+  padding: 7px 9px;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.16));
+  border-radius: 8px;
+  background: var(--bg-surface, #212121);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.26);
+  color: var(--text-primary, #ffffff);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.35;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 3px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.chatgpt-sidebar-root [data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.chatgpt-sidebar-root.collapsed [data-tooltip]::after {
+  left: calc(100% + 8px);
+  bottom: auto;
+  top: 50%;
+  transform: translate(3px, -50%);
+}
+
+.chatgpt-sidebar-root.collapsed [data-tooltip]:hover::after {
+  transform: translate(0, -50%);
 }
 
 /* Brand Header Row */
@@ -52,7 +117,118 @@
 .sidebar-brand-left {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Sidebar 3D Neural Emblem (Next to Noesis brand) */
+.sidebar-neural-emblem {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 400px;
+  transform-style: preserve-3d;
+  flex-shrink: 0;
+}
+
+.sidebar-neural-sphere {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #737373 40%, #1f1f1f 85%, #0a0a0a 100%);
+  box-shadow: 
+    0 0 8px rgba(255, 255, 255, 0.45),
+    inset -1.5px -1.5px 3px rgba(0, 0, 0, 0.9),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+[data-theme="light"] .sidebar-neural-sphere {
+  background: radial-gradient(circle at 35% 30%, #52525b 0%, #27272a 45%, #18181b 90%, #09090b 100%);
+  box-shadow: 
+    0 0 5px rgba(0, 0, 0, 0.25),
+    inset -1px -1px 2px rgba(0, 0, 0, 0.8),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.6);
+}
+
+.sidebar-neural-brain {
+  color: #ffffff;
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.8));
+}
+
+.sidebar-gyro-ring {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px dotted rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+[data-theme="light"] .sidebar-gyro-ring {
+  border: 1px dotted rgba(0, 0, 0, 0.55);
+}
+
+.sidebar-gyro-ring.gyro-eq {
+  transform: rotateZ(0deg) rotateX(68deg);
+}
+
+.sidebar-gyro-ring.gyro-pos {
+  transform: rotateZ(45deg) rotateX(68deg);
+}
+
+.sidebar-gyro-ring.gyro-neg {
+  transform: rotateZ(-45deg) rotateX(68deg);
+}
+
+.sidebar-gyro-ring.gyro-polar {
+  transform: rotateZ(90deg) rotateX(68deg);
+}
+
+.sidebar-neural-emblem .planet-revolver {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.sidebar-neural-emblem .rev-eq    { animation: orbitRevolve 10s linear infinite; }
+.sidebar-neural-emblem .rev-pos   { animation: orbitRevolve 7.5s linear infinite; }
+.sidebar-neural-emblem .rev-neg   { animation: orbitRevolve 8.8s linear infinite reverse; }
+.sidebar-neural-emblem .rev-polar { animation: orbitRevolve 6.2s linear infinite; }
+
+.sidebar-neural-emblem .orbit-planet {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="light"] .sidebar-neural-emblem .orbit-planet {
+  background: #171717;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes orbitRevolve {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 .sidebar-brand-title {
@@ -306,11 +482,35 @@
   color: #52525b;
 }
 
+.sidebar-dev-tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 0;
+  background: transparent;
+  color: #818cf8;
+  border: none;
+  margin-left: auto;
+}
+
+.sidebar-nav-item.is-active,
+.sidebar-action-btn.is-active {
+  background: var(--bg-surface-hover, rgba(255, 255, 255, 0.08)) !important;
+  color: var(--text-primary, #ffffff) !important;
+}
+
+[data-theme="light"] .sidebar-nav-item.is-active,
+[data-theme="light"] .sidebar-action-btn.is-active {
+  background: rgba(99, 102, 241, 0.1) !important;
+  color: #4338ca !important;
+}
+
 /* History Section */
 .sidebar-history-pane {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -419,6 +619,20 @@
   overflow: visible;
   text-overflow: clip;
   animation: singleTitlePingPong 3.8s ease-in-out infinite alternate;
+}
+
+/* Keep the existing in-row chat-title animation free of competing popovers. */
+
+.sidebar-brand-header .sidebar-action-btn[data-tooltip]::after {
+  left: auto;
+  right: 0;
+  top: calc(100% + 8px);
+  bottom: auto;
+  transform: translate(0, 3px);
+}
+
+.sidebar-brand-header .sidebar-action-btn[data-tooltip]:hover::after {
+  transform: translate(0, 0);
 }
 
 @keyframes singleTitlePingPong {
@@ -586,13 +800,13 @@
 /* Profile Dropdown Menu */
 .profile-dropdown-menu {
   position: absolute;
-  bottom: calc(100% + 6px);
-  left: 4px;
-  right: 4px;
-  background: var(--bg-card, #171717);
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  bottom: calc(100% + 8px);
+  left: 6px;
+  right: 6px;
+  background: var(--bg-card, #1e1e1e);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
   border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -600,10 +814,22 @@
   z-index: 500;
 }
 
+/* In collapsed mode, position directly above the profile button */
+.chatgpt-sidebar-root.collapsed .profile-dropdown-menu {
+  left: 6px;
+  right: auto;
+  bottom: calc(100% + 8px);
+  width: 240px;
+}
+
+.sidebar-bottom-profile:has(.profile-dropdown-menu) .user-profile-row-btn::after {
+  display: none;
+}
+
 [data-theme="light"] .profile-dropdown-menu {
   background: #ffffff;
   border-color: rgba(0, 0, 0, 0.1);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.15);
 }
 
 .dropdown-user-header {
