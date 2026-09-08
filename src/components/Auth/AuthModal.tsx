@@ -42,12 +42,14 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   const [cooldown, setCooldown] = useState<number>(60);
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
-  // Initialize Google Identity Services & Render Official Button
+  const hasRenderedGoogleBtn = useRef(false);
+
+  // Initialize Google Identity Services & Render Official Button (Once on mount)
   useEffect(() => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     
     const initGsi = () => {
-      if ((window as any).google?.accounts?.id && googleClientId) {
+      if ((window as any).google?.accounts?.id && googleClientId && googleBtnContainerRef.current) {
         try {
           (window as any).google.accounts.id.initialize({
             client_id: googleClientId,
@@ -70,7 +72,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
             },
           });
 
-          if (googleBtnContainerRef.current) {
+          if (!hasRenderedGoogleBtn.current || !googleBtnContainerRef.current.hasChildNodes()) {
             googleBtnContainerRef.current.innerHTML = '';
             (window as any).google.accounts.id.renderButton(googleBtnContainerRef.current, {
               theme: 'filled_black',
@@ -81,6 +83,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
               width: 320,
               logo_alignment: 'left',
             });
+            hasRenderedGoogleBtn.current = true;
           }
         } catch (err) {
           console.warn('GSI render notice:', err);
@@ -88,9 +91,10 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
       }
     };
 
-    const timer = setTimeout(initGsi, 200);
+    initGsi();
+    const timer = setTimeout(initGsi, 350);
     return () => clearTimeout(timer);
-  }, [authMode, onLogin]);
+  }, [onLogin]);
 
   // 60-Second OTP Countdown timer
   useEffect(() => {
@@ -546,23 +550,23 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
               )}
 
               <form onSubmit={handleSubmit} className="auth-input-form">
-                {authMode === 'signup' && (
-                  <div className="auth-field-group anim-slide-up">
-                    <label htmlFor="auth-name">Full name</label>
-                    <div className="auth-input-wrapper">
-                      <User size={15} className="auth-field-icon" />
-                      <input 
-                        id="auth-name"
-                        type="text" 
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Alex Johnson"
-                        autoComplete="name"
-                        required
-                      />
-                    </div>
+                {/* Full Name field (smooth expandable for Sign Up) */}
+                <div className={`auth-field-group auth-expandable-field ${authMode === 'signup' ? 'is-expanded' : ''}`}>
+                  <label htmlFor="auth-name">Full name</label>
+                  <div className="auth-input-wrapper">
+                    <User size={15} className="auth-field-icon" />
+                    <input 
+                      id="auth-name"
+                      type="text" 
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Alex Johnson"
+                      autoComplete="name"
+                      required={authMode === 'signup'}
+                      tabIndex={authMode === 'signup' ? 0 : -1}
+                    />
                   </div>
-                )}
+                </div>
 
                 <div className="auth-field-group">
                   <label htmlFor="auth-email">Email address</label>
@@ -618,35 +622,34 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   </div>
                 </div>
 
-                {/* Confirm Password Field (Sign Up Mode) */}
-                {authMode === 'signup' && (
-                  <div className="auth-field-group anim-slide-up">
-                    <label htmlFor="auth-confirm-password">Confirm password</label>
-                    <div className="auth-input-wrapper">
-                      <Lock size={15} className="auth-field-icon" />
-                      <input 
-                        id="auth-confirm-password"
-                        type={showConfirmPassword ? 'text' : 'password'} 
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Re-enter password"
-                        autoComplete="new-password"
-                        onCopy={preventClipboard}
-                        onPaste={preventClipboard}
-                        onCut={preventClipboard}
-                        required
-                      />
-                      <button 
-                        type="button" 
-                        className="password-toggle-btn"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        title={showConfirmPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                    </div>
+                {/* Confirm Password Field (smooth expandable for Sign Up) */}
+                <div className={`auth-field-group auth-expandable-field ${authMode === 'signup' ? 'is-expanded' : ''}`}>
+                  <label htmlFor="auth-confirm-password">Confirm password</label>
+                  <div className="auth-input-wrapper">
+                    <Lock size={15} className="auth-field-icon" />
+                    <input 
+                      id="auth-confirm-password"
+                      type={showConfirmPassword ? 'text' : 'password'} 
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      autoComplete="new-password"
+                      onCopy={preventClipboard}
+                      onPaste={preventClipboard}
+                      onCut={preventClipboard}
+                      required={authMode === 'signup'}
+                      tabIndex={authMode === 'signup' ? 0 : -1}
+                    />
+                    <button 
+                      type="button" 
+                      className="password-toggle-btn"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
                   </div>
-                )}
+                </div>
 
                 <button type="submit" className="auth-primary-submit-btn" disabled={isLoading}>
                   {isLoading ? (
