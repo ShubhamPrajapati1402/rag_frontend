@@ -365,7 +365,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         </div>
 
         {/* Content Container */}
-        <div className="auth-card-inner">
+        <div className="auth-form-card auth-card-inner">
           {authMode === 'otp' ? (
             /* 1. OTP Verification Mode */
             <div className="auth-otp-view anim-fade-in">
