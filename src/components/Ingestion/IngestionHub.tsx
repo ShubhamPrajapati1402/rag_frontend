@@ -132,8 +132,12 @@ export default function IngestionHub({ documents, setDocuments, onUpdateDocCount
             const finalSummary = docObj.summary || docObj.description || `Semantic boundary index containing chunks for ${file.name}.`;
             const finalPreview = docObj.previewText || docObj.preview_text || docObj.preview || docObj.content || docObj.text || docObj.sample || docObj.sample_text || 'All structural text regions and tokens indexed inside vector space.';
 
+            const docId = docObj.document_id !== undefined && docObj.document_id !== null
+              ? String(docObj.document_id)
+              : String(docObj.id || docObj.doc_id || `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+
             const newDoc: DocumentItem = {
-              id: String(docObj.id || docObj.doc_id || `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`),
+              id: docId,
               name: docObj.name || docObj.filename || docObj.file_name || file.name,
               format: docObj.format || docObj.fileType || docObj.file_type || format,
               size: docObj.size || sizeStr,

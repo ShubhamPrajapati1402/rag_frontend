@@ -737,10 +737,19 @@ export default function ChatStudio({
     streamingSessionIdRef.current = activeSession || 'STREAMING_NEW';
 
     try {
+      // Map tagged documents to integer IDs, or filename string if ID is non-numeric
+      const docIdsToSend = taggedDocuments
+        .map(d => {
+          const num = Number(d.id);
+          if (!isNaN(num) && num > 0) return num;
+          return getDocName(d);
+        })
+        .filter(Boolean);
+
       await chatApi.streamChat({
         question: queryToSend,
         sessionId: activeSession || null,
-        documentIds: taggedDocuments.length > 0 ? taggedDocuments.map(d => d.id) : null,
+        documentIds: docIdsToSend.length > 0 ? (docIdsToSend as any) : null,
         modelName: selectedModel === 'inbuilt' ? undefined : selectedModel,
         apiKey: customApiKey || undefined,
         modelProvider: selectedModel === 'inbuilt' ? 'inbuilt' : undefined,
