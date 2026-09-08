@@ -7,8 +7,9 @@
   align-items: center;
   justify-content: center;
   padding: 16px;
-  overflow: hidden;
-  height: 100vh;
+  overflow-y: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
   box-sizing: border-box;
 }
 

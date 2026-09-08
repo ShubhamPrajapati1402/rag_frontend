@@ -1149,3 +1149,37 @@
 .btn-danger-confirm:hover {
   background: #dc2626;
 }
+
+/* ==========================================================================
+   Mobile Off-Canvas Drawer Mode
+   ========================================================================== */
+@media (max-width: 768px) {
+  .chatgpt-sidebar-root {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    height: 100dvh;
+    width: 280px;
+    max-width: 82vw;
+    z-index: 1000;
+    transform: translateX(0);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease;
+    box-shadow: 12px 0 36px rgba(0, 0, 0, 0.6);
+    border-right: 1px solid var(--border-medium);
+  }
+
+  .chatgpt-sidebar-root.collapsed {
+    transform: translateX(-100%);
+    width: 280px;
+    padding: 12px 10px;
+    box-shadow: none;
+    pointer-events: none;
+  }
+
+  .collapsed-vertical-stack {
+    display: none;
+  }
+}
+

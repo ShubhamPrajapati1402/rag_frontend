@@ -1310,59 +1310,107 @@
 
 @media (max-width: 768px) {
   .chatgpt-canvas-root {
-    height: calc(100vh - 50px);
+    height: 100%;
+    width: 100%;
   }
 
   .chatgpt-messages-viewport {
-    padding: 16px 12px 160px 12px;
-    gap: 16px;
+    padding: 12px 10px 140px 10px;
+    gap: 14px;
+    max-width: 100%;
   }
 
   .chatgpt-hero-empty {
-    margin-top: 8vh;
+    margin-top: 3vh;
     padding: 0 8px;
   }
 
   .chatgpt-hero-prompt {
-    font-size: 28px;
+    font-size: 22px;
   }
 
-  .prompt-starters-row {
-    flex-direction: column;
-    width: 100%;
-    gap: 6px;
+  .neural-3d-scene {
+    width: 180px;
+    height: 180px;
+    transform: scale(0.85);
   }
 
-  .starter-pill-btn {
-    width: 100%;
-    text-align: left;
-    font-size: 12px;
-    padding: 7px 12px;
+  .hero-suggestions-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    max-width: 100%;
   }
 
   .user-message-bubble {
-    max-width: 88%;
+    max-width: 90%;
     font-size: 14px;
-    padding: 8px 14px;
+    padding: 8px 12px;
   }
 
   .ai-markdown-body {
-    font-size: 15px;
-    line-height: 1.68;
+    font-size: 14px;
+    line-height: 1.6;
+    word-break: break-word;
+  }
+
+  .ai-markdown-body pre {
+    max-width: 100%;
+    overflow-x: auto;
   }
 
   .chatgpt-input-wrapper {
     width: 100%;
-    padding: 0 12px 10px 12px;
+    padding: 0 8px 8px 8px;
   }
 
   .chatgpt-input-bar {
-    padding: 6px 8px 6px 12px;
+    padding: 6px 8px 6px 10px;
+    gap: 6px;
+    border-radius: 20px;
+  }
+
+  .chatgpt-input-bar input {
+    font-size: 14px;
+    min-width: 0;
+  }
+
+  .input-attach-btn,
+  .input-voice-btn,
+  .send-arrow-circle {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
   }
 
   .drawer-card {
     padding: 16px;
-    max-width: 92vw;
+    max-width: 94vw;
+  }
+}
+
+@media (max-width: 480px) {
+  .chatgpt-hero-prompt {
+    font-size: 20px;
+  }
+
+  .hero-salutation-text {
+    font-size: 12px;
+  }
+
+  .neural-3d-scene {
+    width: 150px;
+    height: 150px;
+    transform: scale(0.75);
+  }
+
+  .chatgpt-input-bar {
+    padding: 4px 6px 4px 8px;
+  }
+
+  .chatgpt-disclaimer {
+    font-size: 10px;
+    padding: 0 4px;
   }
 }
 
