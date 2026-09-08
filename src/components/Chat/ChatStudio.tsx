@@ -1,7 +1,14 @@
 ﻿import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { 
+import {
+  Mic,
+  MicOff,
+  Volume2,
+  Pause,
+  
+  Square,
+  Loader2,
   ArrowUp, 
   Copy, 
   Check, 
@@ -24,6 +31,7 @@ import {
 } from 'lucide-react';
 import { DocumentItem, ChatMessage, SourceCitation, UserProfile } from '../../types';
 import { chatApi } from '../../services/chatApi';
+import { voiceApi, VoiceProfile } from '../../services/voiceApi';
 import './ChatStudio.css';
 
 export function formatISTDateTime(dateInput?: string | number | Date): string {
@@ -157,6 +165,179 @@ export default function ChatStudio({
     return getCachedSessionMessages(currentSessionId) || [];
   });
   const [input, setInput] = useState<string>('');
+  // In-Chat Document Selector & @Mention State
+  const [taggedDocuments, setTaggedDocuments] = useState<DocumentItem[]>([]);
+  const [isDocMentionOpen, setIsDocMentionOpen] = useState<boolean>(false);
+  const [docMentionQuery, setDocMentionQuery] = useState<string>('');
+  const [docMentionIndex, setDocMentionIndex] = useState<number>(0);
+  const mentionDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Voice STT & TTS States
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
+  const [playingMessageId, setPlayingMessageId] = useState<string | number | null>(null);
+  const [isGeneratingVoice, setIsGeneratingVoice] = useState<string | number | null>(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(() => {
+    return parseFloat(localStorage.getItem('noesis_voice_speed') || '1.0');
+  });
+  const [selectedVoice, setSelectedVoice] = useState<string>(() => {
+    return localStorage.getItem('noesis_selected_voice') || 'en-US-ChristopherNeural';
+  });
+  const [availableVoices, setAvailableVoices] = useState<VoiceProfile[]>([]);
+  const [showVoiceMenu, setShowVoiceMenu] = useState<boolean>(false);
+  const [loadingAudioMsgId, setLoadingAudioMsgId] = useState<string | number | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    voiceApi.getVoices().then((voices) => {
+      if (voices && voices.length > 0) setAvailableVoices(voices);
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (activeAudioRef.current) {
+        activeAudioRef.current.pause();
+        activeAudioRef.current.src = '';
+        activeAudioRef.current = null;
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
+
+  const handleToggleRecording = async () => {
+    if (isRecording) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunksRef.current = [];
+        const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        };
+
+        recorder.onstop = async () => {
+          setIsRecording(false);
+          setIsTranscribing(true);
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          stream.getTracks().forEach((track) => track.stop());
+
+          try {
+            const transcript = await voiceApi.transcribeAudio(audioBlob);
+            if (transcript && transcript.trim()) {
+              setInput((prev) => (prev ? `${prev} ${transcript.trim()}` : transcript.trim()));
+            }
+          } catch (err) {
+            console.error('STT transcription error:', err);
+          } finally {
+            setIsTranscribing(false);
+          }
+        };
+
+        mediaRecorderRef.current = recorder;
+        recorder.start(250);
+        setIsRecording(true);
+      } catch (err) {
+        console.error('Failed to access microphone:', err);
+        alert('Microphone access is required for voice typing.');
+      }
+    }
+  };
+
+  const handleCycleSpeed = () => {
+    const speeds = [0.8, 1.0, 1.25, 1.5, 2.0];
+    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
+    const newSpeed = speeds[nextIdx];
+    setPlaybackSpeed(newSpeed);
+    localStorage.setItem('noesis_voice_speed', String(newSpeed));
+    if (activeAudioRef.current) {
+      activeAudioRef.current.playbackRate = newSpeed;
+    }
+  };
+
+  const handleToggleSpeak = (msgId: string | number, text: string) => {
+    // If currently playing or loading this message, stop and cancel immediately
+    if (playingMessageId === msgId || loadingAudioMsgId === msgId) {
+      if (activeAudioRef.current) {
+        activeAudioRef.current.pause();
+        activeAudioRef.current.src = '';
+        activeAudioRef.current = null;
+      }
+      setPlayingMessageId(null);
+      setLoadingAudioMsgId(null);
+      return;
+    }
+
+    // Stop any previously playing audio
+    if (activeAudioRef.current) {
+      activeAudioRef.current.pause();
+      activeAudioRef.current.src = '';
+      activeAudioRef.current = null;
+    }
+
+    const cleanedText = voiceApi.cleanText(text);
+    if (!cleanedText) {
+      setLoadingAudioMsgId(null);
+      setPlayingMessageId(null);
+      return;
+    }
+
+    setLoadingAudioMsgId(msgId);
+    setPlayingMessageId(null);
+
+    try {
+      // Direct stream URL connects to FastAPI Edge-TTS stream with LRU audio caching
+      const streamUrl = voiceApi.getStreamUrl(text, selectedVoice);
+      const audio = new Audio(streamUrl);
+      audio.playbackRate = playbackSpeed;
+      audio.preload = 'auto';
+
+      audio.onplay = () => {
+        setLoadingAudioMsgId(null);
+        setPlayingMessageId(msgId);
+      };
+
+      audio.onplaying = () => {
+        setLoadingAudioMsgId(null);
+        setPlayingMessageId(msgId);
+      };
+
+      audio.onended = () => {
+        setPlayingMessageId(null);
+        setLoadingAudioMsgId(null);
+        activeAudioRef.current = null;
+      };
+
+      audio.onerror = (e) => {
+        console.error('Edge-TTS playback error:', e);
+        setPlayingMessageId(null);
+        setLoadingAudioMsgId(null);
+        activeAudioRef.current = null;
+      };
+
+      activeAudioRef.current = audio;
+      audio.play().catch((err) => {
+        console.error('Audio play invocation error:', err);
+        setPlayingMessageId(null);
+        setLoadingAudioMsgId(null);
+        activeAudioRef.current = null;
+      });
+    } catch (err) {
+      console.error('TTS stream initialization failed:', err);
+      setPlayingMessageId(null);
+      setLoadingAudioMsgId(null);
+    }
+  };
+
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [streamingText, setStreamingText] = useState<string>('');
   const [streamingCitations, setStreamingCitations] = useState<SourceCitation[]>([]);
@@ -477,6 +658,50 @@ export default function ChatStudio({
     return { label: `Processing (${nodeName})`, icon: <Zap size={13} /> };
   };
 
+  
+    const getDocName = (d: any): string => {
+    return d?.fileName || d?.filename || d?.name || d?.document_name || 'Document';
+  };
+
+  const filteredMentionDocs = useMemo(() => {
+    if (!docMentionQuery) return documents;
+    const q = docMentionQuery.toLowerCase();
+    return documents.filter(d => getDocName(d).toLowerCase().includes(q));
+  }, [documents, docMentionQuery]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    const lastAtPos = val.lastIndexOf('@');
+    if (lastAtPos !== -1 && (lastAtPos === 0 || val[lastAtPos - 1] === ' ')) {
+      const mentionText = val.slice(lastAtPos + 1);
+      if (!mentionText.includes(' ')) {
+        setDocMentionQuery(mentionText);
+        setIsDocMentionOpen(true);
+        setDocMentionIndex(0);
+        return;
+      }
+    }
+    setIsDocMentionOpen(false);
+  };
+
+  const handleTagDocument = (doc: DocumentItem) => {
+    if (!taggedDocuments.some(d => d.id === doc.id)) {
+      setTaggedDocuments(prev => [...prev, doc]);
+    }
+    const lastAtPos = input.lastIndexOf('@');
+    if (lastAtPos !== -1) {
+      const before = input.slice(0, lastAtPos);
+      setInput(before.trim() ? before + ' ' : '');
+    }
+    setIsDocMentionOpen(false);
+    inputRef.current?.focus();
+  };
+
+  const handleRemoveTag = (docId: number) => {
+    setTaggedDocuments(prev => prev.filter(d => d.id !== docId));
+  };
+
   const handleSend = async (e?: React.FormEvent | null, overridePrompt?: string) => {
     e?.preventDefault();
     const queryToSend = overridePrompt || input.trim();
@@ -491,11 +716,13 @@ export default function ChatStudio({
       id: `user-${Date.now()}`,
       type: 'user',
       content: queryToSend,
+      taggedDocs: taggedDocuments.map(d => getDocName(d)),
       createdAt: new Date().toISOString()
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
+    setTaggedDocuments([]); // Auto-clear tagged document chip upon sending
     setIsStreaming(true);
     setStreamingText('');
     setStreamingCitations([]);
@@ -513,6 +740,7 @@ export default function ChatStudio({
       await chatApi.streamChat({
         question: queryToSend,
         sessionId: activeSession || null,
+        documentIds: taggedDocuments.length > 0 ? taggedDocuments.map(d => d.id) : null,
         modelName: selectedModel === 'inbuilt' ? undefined : selectedModel,
         apiKey: customApiKey || undefined,
         modelProvider: selectedModel === 'inbuilt' ? 'inbuilt' : undefined,
@@ -591,6 +819,27 @@ export default function ChatStudio({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isDocMentionOpen && filteredMentionDocs.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setDocMentionIndex(prev => (prev + 1) % filteredMentionDocs.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setDocMentionIndex(prev => (prev - 1 + filteredMentionDocs.length) % filteredMentionDocs.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        handleTagDocument(filteredMentionDocs[docMentionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setIsDocMentionOpen(false);
+        return;
+      }
+    }
     if (e.key === 'ArrowUp') {
       if (inputHistory.length === 0) return;
       if (historyIndex === -1) {
@@ -708,7 +957,7 @@ export default function ChatStudio({
             <div className="hero-greeting-container anim-slide-up">
               <h1 className="chatgpt-hero-prompt">What can I help with?</h1>
               <span className="hero-salutation-text">
-                {greetingInfo.timeGreeting}, {greetingInfo.displayName} â€¢ Select a prompt below or ask anything
+                {greetingInfo.timeGreeting}, {greetingInfo.displayName} • Select a prompt below or ask anything
               </span>
             </div>
 
@@ -737,7 +986,17 @@ export default function ChatStudio({
               {msg.type === 'user' ? (
                 <div className="user-message-group anim-slide-up">
                   <div className="user-message-bubble">
-                    {msg.content}
+                    {(msg as any).taggedDocs && (msg as any).taggedDocs.length > 0 && (
+                      <div className="user-attached-docs-row">
+                        {(msg as any).taggedDocs.map((docName: string, idx: number) => (
+                          <span key={idx} className="user-attached-doc-badge">
+                            <FileText size={11} className="text-indigo-400" />
+                            <span className="user-attached-doc-text">{docName}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="user-message-text">{msg.content}</div>
                   </div>
                   <div className="user-actions-row">
                     <span className="msg-timestamp">{formatISTDateTime(msg.createdAt)}</span>
@@ -775,7 +1034,7 @@ export default function ChatStudio({
                           <span className="source-num-badge">{sIdx + 1}</span>
                           <FileText size={11} className="source-file-icon" />
                           <span className="source-name-text">{src.fileName}</span>
-                          {src.page && <span className="source-page-text">â€¢ {src.page}</span>}
+                          {src.page && <span className="source-page-text">• {src.page}</span>}
                         </button>
                       ))}
                     </div>
@@ -797,6 +1056,32 @@ export default function ChatStudio({
                     >
                       {copiedId === msg.id ? <Check size={13} className="text-accent" /> : <Copy size={13} />}
                     </button>
+                    {/* TTS Voice Speaker / Pause Button */}
+                    <button 
+                      className={`action-icon-btn voice-tts-btn ${playingMessageId === msg.id ? 'is-speaking' : ''} ${loadingAudioMsgId === msg.id ? 'is-loading' : ''}`}
+                      onClick={() => handleToggleSpeak(msg.id, msg.content)}
+                      data-tooltip={loadingAudioMsgId === msg.id ? 'Buffering neural voice...' : playingMessageId === msg.id ? 'Pause audio' : 'Listen to response (Neural Voice)'}
+                    >
+                      {loadingAudioMsgId === msg.id ? (
+                        <Loader2 size={14} className="animate-spin text-indigo-400" />
+                      ) : playingMessageId === msg.id ? (
+                        <Pause size={14} strokeWidth={2.5} className="text-indigo-400" />
+                      ) : (
+                        <Volume2 size={15} strokeWidth={2.2} />
+                      )}
+                    </button>
+
+                    {/* Playback Speed Controller Pill */}
+                    {playingMessageId === msg.id && (
+                      <button
+                        type="button"
+                        className="playback-speed-pill anim-pop-in"
+                        onClick={handleCycleSpeed}
+                        data-tooltip="Playback Speed: Click to cycle (0.8x, 1x, 1.25x, 1.5x, 2x)"
+                      >
+                        {playbackSpeed}x
+                      </button>
+                    )}
                     <button className="action-icon-btn" data-tooltip="Good response"><ThumbsUp size={14} /></button>
                     <button className="action-icon-btn" data-tooltip="Bad response"><ThumbsDown size={14} /></button>
                   </div>
@@ -864,7 +1149,7 @@ export default function ChatStudio({
                       <span className="source-num-badge">{sIdx + 1}</span>
                       <FileText size={11} className="source-file-icon" />
                       <span className="source-name-text">{src.fileName}</span>
-                      {src.page && <span className="source-page-text">â€¢ {src.page}</span>}
+                      {src.page && <span className="source-page-text">• {src.page}</span>}
                     </button>
                   ))}
                 </div>
@@ -887,26 +1172,99 @@ export default function ChatStudio({
 
       {/* Floating Bottom Console */}
       <div className="chatgpt-input-wrapper">
-        {/* ChatGPT Input Bar */}
+        {/* Autocomplete @mention Popover */}
+        {isDocMentionOpen && filteredMentionDocs.length > 0 && (
+          <div ref={mentionDropdownRef} className="doc-mention-popover anim-slide-up">
+            <div className="doc-mention-header">
+              <Sparkles size={13} className="text-indigo-400" />
+              <span>Tag a Document to Scope Search</span>
+            </div>
+            <div className="doc-mention-list">
+              {filteredMentionDocs.map((doc, idx) => (
+                <div
+                  key={doc.id}
+                  className={`doc-mention-item ${idx === docMentionIndex ? 'selected' : ''}`}
+                  onClick={() => handleTagDocument(doc)}
+                  onMouseEnter={() => setDocMentionIndex(idx)}
+                >
+                  <div className="doc-mention-icon">
+                    <FileText size={15} />
+                  </div>
+                  <div className="doc-mention-info">
+                    <div className="doc-mention-title">{getDocName(doc)}</div>
+                    <div className="doc-mention-meta">
+                      {doc.format || doc.fileType || 'PDF'}{doc.size ? ` • ${doc.size}` : ''}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ChatGPT Input Bar with Inside Attachment Chips */}
         <form className="chatgpt-input-bar anim-slide-up" onSubmit={(e) => handleSend(e)}>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="input-attach-btn"
-            onClick={onNavigateToIngestion}
-            data-tooltip="Attach document"
+            onClick={() => {
+              if (documents.length > 0) {
+                setIsDocMentionOpen(prev => !prev);
+                setDocMentionQuery('');
+              } else {
+                onNavigateToIngestion();
+              }
+            }}
+            data-tooltip="Tag Document (@)"
           >
             <Plus size={18} />
           </button>
 
-          <input 
+          {/* Inline Tagged Document Chips (ChatGPT Single-Row Style) */}
+          {taggedDocuments.map(doc => (
+            <div key={doc.id} className="input-inline-doc-chip anim-scale-in">
+              <FileText size={12} className="text-indigo-400" />
+              <span className="input-inline-doc-name">{getDocName(doc)}</span>
+              <button
+                type="button"
+                className="input-inline-doc-remove"
+                onClick={() => handleRemoveTag(doc.id)}
+                data-tooltip="Remove filter"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+
+          <input
             ref={inputRef}
-            type="text" 
-            placeholder="Message Noesis..."
+            type="text"
+            placeholder={taggedDocuments.length > 0 ? "Ask a question..." : "Message Noesis... (type @ to tag docs)"}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             disabled={isStreaming}
           />
+
+          {/* Voice Input Microphone Button */}
+          <button 
+            type="button" 
+            className={`input-voice-btn ${isRecording ? 'is-recording' : ''} ${isTranscribing ? 'is-transcribing' : ''}`}
+            onClick={handleToggleRecording}
+            disabled={isStreaming || isTranscribing}
+            data-tooltip={isRecording ? 'Click to stop speaking' : isTranscribing ? 'Transcribing speech...' : 'Voice typing (Groq Whisper)'}
+          >
+            {isTranscribing ? (
+              <Loader2 size={17} className="animate-spin text-indigo-400" />
+            ) : isRecording ? (
+              <span className="recording-indicator">
+                <span className="recording-pulse-dot"></span>
+                <Square size={13} fill="currentColor" />
+              </span>
+            ) : (
+              <Mic size={17} />
+            )}
+          </button>
 
           <button 
             type="submit" 
@@ -915,7 +1273,7 @@ export default function ChatStudio({
           >
             <ArrowUp size={16} />
           </button>
-        </form>
+          </form>
 
         {/* Disclaimer */}
         <div className="chatgpt-disclaimer">
@@ -933,7 +1291,7 @@ export default function ChatStudio({
                 <div>
                   <h4>{activeSource.fileName}</h4>
                   <span className="drawer-loc">
-                    {activeSource.page || activeSource.sheet || 'Reference Document'} {activeSource.similarity ? `â€¢ ${activeSource.similarity}` : ''}
+                    {activeSource.page || activeSource.sheet || 'Reference Document'} {activeSource.similarity ? `• ${activeSource.similarity}` : ''}
                   </span>
                 </div>
               </div>
