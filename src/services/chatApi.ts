@@ -67,7 +67,7 @@ export function normalizeCitation(item: any, idx: number): SourceCitation {
 export interface StreamChatOptions {
   question: string;
   sessionId?: string | null;
-  documentIds?: string[] | null;
+  documentIds?: (string | number)[] | null;
   modelProvider?: string;
   modelName?: string;
   apiKey?: string;
@@ -132,7 +132,15 @@ export const chatApi = {
         let errMessage = 'Chat request failed (' + response.status + ')';
         try {
           const errData = await response.json();
-          errMessage = errData.detail || errData.message || errMessage;
+          if (Array.isArray(errData.detail)) {
+            errMessage = errData.detail.map((d: any) => d.msg || JSON.stringify(d)).join(", ");
+          } else if (typeof errData.detail === 'string') {
+            errMessage = errData.detail;
+          } else if (errData.detail && typeof errData.detail === 'object') {
+            errMessage = JSON.stringify(errData.detail);
+          } else if (errData.message) {
+            errMessage = errData.message;
+          }
         } catch {}
         throw new Error(errMessage);
       }
