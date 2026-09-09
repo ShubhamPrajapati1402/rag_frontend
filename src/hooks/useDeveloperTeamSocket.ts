@@ -37,11 +37,12 @@ export function useDeveloperTeamSocket({
   const onNotifyRef = useRef(onEventNotification);
   onNotifyRef.current = onEventNotification;
 
-  const isSuperuser = userProfile?.is_superuser;
+  const isSuperuser = Boolean(userProfile?.is_superuser);
   const userEmail = userProfile?.email;
 
   const connect = useCallback(() => {
-    if (!isSuperuser || !isMountedRef.current) return;
+    // Explicit guard: Only connect if user is authenticated and has superuser privileges
+    if (!userProfile || !userEmail || !isSuperuser || !isMountedRef.current) return;
 
     if (
       socketRef.current &&
@@ -163,10 +164,10 @@ export function useDeveloperTeamSocket({
         if (!isMountedRef.current) return;
         setIsConnected(false);
         socketRef.current = null;
-        if (!reconnectTimeoutRef.current) {
+        if (!reconnectTimeoutRef.current && userProfile && userEmail && isSuperuser) {
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectTimeoutRef.current = null;
-            if (isMountedRef.current) {
+            if (isMountedRef.current && userProfile && userEmail && isSuperuser) {
               connect();
             }
           }, 4000);
@@ -181,11 +182,24 @@ export function useDeveloperTeamSocket({
     } catch (e) {
       console.error('[DeveloperTeamSocket] Failed to create WebSocket:', e);
     }
-  }, [isSuperuser, userEmail]);
+  }, [userProfile, isSuperuser, userEmail]);
 
   useEffect(() => {
     isMountedRef.current = true;
-    connect();
+    if (userProfile && userEmail && isSuperuser) {
+      connect();
+    } else {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      if (socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+      setIsConnected(false);
+      setDevelopers([]);
+    }
 
     return () => {
       isMountedRef.current = false;
@@ -198,7 +212,7 @@ export function useDeveloperTeamSocket({
         socketRef.current = null;
       }
     };
-  }, [connect]);
+  }, [connect, userProfile, userEmail, isSuperuser]);
 
   const refreshTeam = useCallback(() => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {

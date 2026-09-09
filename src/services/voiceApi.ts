@@ -44,34 +44,47 @@ export function cleanTextForSpeech(text: string): string {
   return cleaned.trim();
 }
 
+let cachedVoices: VoiceProfile[] | null = null;
+
 export const voiceApi = {
   /**
-   * Clean text for speech synthesis
+   * Cleans text for natural speech synthesis
    */
-  cleanText: cleanTextForSpeech,
-
-  /**
-   * Get direct streaming audio URL for server-side Edge-TTS neural speech
-   */
-  getStreamUrl(text: string, voice = 'en-US-ChristopherNeural', rate = '+0%'): string {
-    const cleaned = cleanTextForSpeech(text);
-    return (
-      BASE_URL +
-      '/api/v1/voice/tts?text=' +
-      encodeURIComponent(cleaned) +
-      '&voice=' +
-      encodeURIComponent(voice) +
-      '&rate=' +
-      encodeURIComponent(rate)
-    );
+  cleanText(text: string): string {
+    return text
+      // Strip markdown bold / italics
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/__(.*?)__/g, '$1')
+      .replace(/_(.*?)_/g, '$1')
+      // Strip markdown headers
+      .replace(/^#{1,6}\s+/gm, '')
+      // Strip code blocks completely
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`([^`]+)`/g, '$1')
+      // Strip markdown links [label](url) -> label
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // Strip citations [1], [2], etc.
+      .replace(/\[\d+\]/g, '')
+      // Strip HTML tags
+      .replace(/<[^>]+>/g, '')
+      // Strip bullet characters
+      .replace(/^[\s*•-]+\s+/gm, '')
+      // Strip horizontal rules
+      .replace(/^---+$/gm, '')
+      // Normalize excessive whitespace
+      .replace(/\n{2,}/g, '. ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
   },
 
   /**
-   * Transcribe an in-memory audio recording to text using Groq Whisper Large v3 Turbo
+   * STT: Transcribe recorded audio Blob to text
    */
-  async transcribeAudio(audioBlob: Blob, filename = 'speech.webm'): Promise<string> {
+  async transcribeAudio(audioBlob: Blob): Promise<string> {
     const formData = new FormData();
-    formData.append('file', audioBlob, filename);
+    const filename = audioBlob.type.includes('webm') ? 'audio.webm' : 'audio.wav';
+    formData.append('audio', audioBlob, filename);
 
     const res = await fetch(BASE_URL + '/api/v1/voice/stt', {
       method: 'POST',
@@ -89,10 +102,12 @@ export const voiceApi = {
   },
 
   /**
-   * Synthesize text to speech via Edge-TTS backend and return object URL
+   * TTS: Convert text to speech audio URL (blob URL)
    */
-  async synthesizeSpeech(text: string, voice = 'en-US-ChristopherNeural', rate = '+0%'): Promise<string> {
-    const cleaned = cleanTextForSpeech(text);
+  async textToSpeech(text: string, voice?: string, rate?: string): Promise<string> {
+    const cleaned = this.cleanText(text);
+    if (!cleaned) throw new Error('No text provided to speak.');
+
     const res = await fetch(BASE_URL + '/api/v1/voice/tts', {
       method: 'POST',
       headers: {
@@ -112,16 +127,31 @@ export const voiceApi = {
   },
 
   /**
-   * Fetch list of curated Microsoft neural voices
+   * Fetch list of curated Microsoft neural voices (cached)
    */
   async getVoices(): Promise<VoiceProfile[]> {
+    if (cachedVoices && cachedVoices.length > 0) {
+      return cachedVoices;
+    }
     try {
       const res = await fetch(BASE_URL + '/api/v1/voice/voices', { credentials: 'omit' });
       if (!res.ok) return [];
       const data = await res.json();
-      return data.voices || [];
+      cachedVoices = data.voices || [];
+      return cachedVoices;
     } catch {
       return [];
     }
+  },
+
+  /**
+   * Get direct streaming TTS URL for HTMLAudioElement
+   */
+  getStreamUrl(text: string, voice?: string, rate?: string): string {
+    const cleaned = this.cleanText(text);
+    const params = new URLSearchParams({ text: cleaned });
+    if (voice) params.append('voice', voice);
+    if (rate) params.append('rate', rate);
+    return `${BASE_URL}/api/v1/voice/stream?${params.toString()}`;
   },
 };
