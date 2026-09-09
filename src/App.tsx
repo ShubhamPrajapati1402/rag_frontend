@@ -300,12 +300,33 @@ function App() {
     );
   }
 
+  if (!isAuthenticated) {
+    return (
+      <div className={'app-root ' + theme}>
+        <AuthModal onLogin={handleLogin} />
+        {/* Developer Team Invite Acceptance Gateway */}
+        <AcceptInviteModal
+          userProfile={userProfile}
+          onInviteAccepted={async () => {
+            try {
+              const updated = await authApi.getMe();
+              if (updated) {
+                setUserProfile(updated);
+                setIsAuthenticated(true);
+                loadSessions();
+                loadDocuments();
+              }
+            } catch (e) {
+              console.error(e);
+            }
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={'app-root ' + theme}>
-      {!isAuthenticated && (
-        <AuthModal onLogin={handleLogin} />
-      )}
-
       {/* Developer Team Invite Acceptance Gateway */}
       <AcceptInviteModal
         userProfile={userProfile}
@@ -330,7 +351,7 @@ function App() {
         aria-hidden="true"
       />
 
-      <div className={'app-workspace-container ' + (!isAuthenticated ? 'workspace-inert' : '')}>
+      <div className="app-workspace-container">
         <Sidebar 
           chatSessions={chatSessions}
           currentSessionId={currentSessionId}

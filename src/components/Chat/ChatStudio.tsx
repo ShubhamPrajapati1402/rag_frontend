@@ -196,10 +196,11 @@ export default function ChatStudio({
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
+    if (!userProfile) return;
     voiceApi.getVoices().then((voices) => {
       if (voices && voices.length > 0) setAvailableVoices(voices);
     });
-  }, []);
+  }, [userProfile]);
 
   useEffect(() => {
     return () => {
