@@ -39,6 +39,9 @@ export const authApi = {
     if (!res.ok) {
       throw new Error(data.detail || data.message || 'Invalid or expired OTP code.');
     }
+    if (typeof document !== 'undefined') {
+      document.cookie = 'rag_logged_in=1; path=/; max-age=2592000; SameSite=Lax';
+    }
     return data;
   },
 
@@ -71,6 +74,9 @@ export const authApi = {
     if (!res.ok) {
       throw new Error(data.detail || data.message || 'Invalid email or password.');
     }
+    if (typeof document !== 'undefined') {
+      document.cookie = 'rag_logged_in=1; path=/; max-age=2592000; SameSite=Lax';
+    }
     return data;
   },
 
@@ -86,6 +92,9 @@ export const authApi = {
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.detail || data.message || 'Google authentication failed.');
+    }
+    if (typeof document !== 'undefined') {
+      document.cookie = 'rag_logged_in=1; path=/; max-age=2592000; SameSite=Lax';
     }
     return data;
   },
@@ -121,6 +130,10 @@ export const authApi = {
       });
     } catch (e) {
       console.error('Logout failed:', e);
+    } finally {
+      if (typeof document !== 'undefined') {
+        document.cookie = 'rag_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      }
     }
   }
 };

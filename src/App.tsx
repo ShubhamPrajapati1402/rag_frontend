@@ -144,6 +144,15 @@ function App() {
 
   useEffect(() => {
     const initAuth = async () => {
+      // Check if an active session indicator cookie exists
+      const hasSession = typeof document !== 'undefined' && document.cookie.includes('rag_logged_in=1');
+
+      if (!hasSession) {
+        setIsAuthenticated(false);
+        setIsAuthChecking(false);
+        return; // Zero network requests fired on unauthenticated visits
+      }
+
       try {
         const user = await authApi.getMe();
         if (user) {
@@ -152,9 +161,12 @@ function App() {
           loadSessions();
           loadDocuments();
         } else {
+          // Indicator cookie existed but server session is invalid/expired
+          document.cookie = 'rag_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
           setIsAuthenticated(false);
         }
       } catch (err) {
+        document.cookie = 'rag_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
         setIsAuthenticated(false);
       } finally {
         setIsAuthChecking(false);
@@ -212,6 +224,7 @@ function App() {
   };
 
   const handleLogin = (user: UserProfile) => {
+    document.cookie = 'rag_logged_in=1; path=/; max-age=2592000; SameSite=Lax';
     setUserProfile(user);
     setIsAuthenticated(true);
     loadSessions();
@@ -224,6 +237,7 @@ function App() {
     } catch (e) {
       console.error(e);
     }
+    document.cookie = 'rag_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     evictSessionCache();
     setIsAuthenticated(false);
     setUserProfile(null);
