@@ -8,6 +8,7 @@ import AuthModal from './components/Auth/AuthModal';
 import AcceptInviteModal from './components/Evaluation/AcceptInviteModal';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import SimpleModelModal from './components/Models/SimpleModelModal';
+import { useAnimatedFavicon } from './hooks/useAnimatedFavicon';
 import { chatApi } from './services/chatApi';
 import { authApi } from './services/authApi';
 import { DocumentItem, ChatSession, ThemeType, UserProfile } from './types';
@@ -42,6 +43,9 @@ function getInitialTabFromPath(): 'chat' | 'documents' | 'evaluation' {
 }
 
 function App() {
+  // Activate real-time animated gyroscopic solar system favicon in browser tab
+  useAnimatedFavicon();
+
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -370,6 +374,12 @@ function App() {
                 onNavigateToIngestion={() => handleTabSwitch('documents')}
                 docCount={documents.length}
                 documents={documents}
+                onDocumentUploaded={(newDoc) => {
+                  setDocuments(prev => {
+                    if (prev.some(d => d.id === newDoc.id)) return prev;
+                    return [newDoc, ...prev];
+                  });
+                }}
                 onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
                 userProfile={userProfile}
                 selectedModel={selectedModel}
