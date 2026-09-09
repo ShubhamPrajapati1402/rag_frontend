@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -698,8 +698,8 @@ export default function ChatStudio({
     inputRef.current?.focus();
   };
 
-  const handleRemoveTag = (docId: number) => {
-    setTaggedDocuments(prev => prev.filter(d => d.id !== docId));
+  const handleRemoveTag = (docId: string | number) => {
+    setTaggedDocuments(prev => prev.filter(d => String(d.id) !== String(docId)));
   };
 
   const handleSend = async (e?: React.FormEvent | null, overridePrompt?: string) => {
@@ -995,9 +995,9 @@ export default function ChatStudio({
               {msg.type === 'user' ? (
                 <div className="user-message-group anim-slide-up">
                   <div className="user-message-bubble">
-                    {(msg as any).taggedDocs && (msg as any).taggedDocs.length > 0 && (
+                    {msg.taggedDocs && msg.taggedDocs.length > 0 && (
                       <div className="user-attached-docs-row">
-                        {(msg as any).taggedDocs.map((docName: string, idx: number) => (
+                        {msg.taggedDocs.map((docName: string, idx: number) => (
                           <span key={idx} className="user-attached-doc-badge">
                             <FileText size={11} className="text-indigo-400" />
                             <span className="user-attached-doc-text">{docName}</span>

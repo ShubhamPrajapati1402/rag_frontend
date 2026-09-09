@@ -1,4 +1,4 @@
-﻿export type ThemeType = 'light' | 'dark';
+export type ThemeType = 'light' | 'dark';
 
 export interface DocumentItem {
   id: string;
@@ -9,6 +9,7 @@ export interface DocumentItem {
   date: string;
   summary: string;
   previewText?: string;
+  fileType?: string;
 }
 
 export interface SourceCitation {
@@ -34,6 +35,7 @@ export interface ChatMessage {
   modelProvider?: string;
   modelName?: string;
   createdAt?: string;
+  taggedDocs?: string[];
 }
 
 export interface ChatSession {
