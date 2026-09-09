@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Brain, 
-  ArrowRight, 
-  ArrowLeft, 
-  Lock, 
-  Mail, 
-  CheckCircle2, 
-  Eye, 
-  EyeOff, 
+import {
+  Brain,
+  ArrowRight,
+  ArrowLeft,
+  Lock,
+  Mail,
+  CheckCircle2,
+  Eye,
+  EyeOff,
   User,
   AlertCircle,
   KeyRound,
@@ -43,16 +43,24 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
   const hasRenderedGoogleBtn = useRef(false);
+  const onLoginRef = useRef(onLogin);
+  onLoginRef.current = onLogin;
 
   // Initialize Google Identity Services & Render Official Button (Once on mount)
   useEffect(() => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    
-    const initGsi = () => {
-      if ((window as any).google?.accounts?.id && googleClientId && googleBtnContainerRef.current) {
+    if (!googleClientId) return;
+
+    let isCancelled = false;
+
+    const renderBtn = () => {
+      if (isCancelled || (hasRenderedGoogleBtn.current && googleBtnContainerRef.current?.hasChildNodes())) return;
+      const gsi = (window as any).google?.accounts?.id;
+      if (gsi && googleBtnContainerRef.current) {
         try {
-          (window as any).google.accounts.id.initialize({
+          gsi.initialize({
             client_id: googleClientId,
+            auto_select: false,
             callback: async (response: any) => {
               if (!response?.credential) return;
               setIsLoading(true);
@@ -60,7 +68,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
               try {
                 await authApi.googleLogin(response.credential);
                 const me = await authApi.getMe();
-                onLogin(me || {
+                onLoginRef.current(me || {
                   name: 'User',
                   email: '',
                 });
@@ -72,29 +80,46 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
             },
           });
 
-          if (!hasRenderedGoogleBtn.current || !googleBtnContainerRef.current.hasChildNodes()) {
-            googleBtnContainerRef.current.innerHTML = '';
-            (window as any).google.accounts.id.renderButton(googleBtnContainerRef.current, {
-              theme: 'filled_black',
-              size: 'large',
-              type: 'standard',
-              shape: 'pill',
-              text: 'continue_with',
-              width: 320,
-              logo_alignment: 'left',
-            });
-            hasRenderedGoogleBtn.current = true;
-          }
+          googleBtnContainerRef.current.innerHTML = '';
+          gsi.renderButton(googleBtnContainerRef.current, {
+            theme: 'filled_black',
+            size: 'large',
+            type: 'standard',
+            shape: 'pill',
+            text: 'continue_with',
+            width: 320,
+            logo_alignment: 'left',
+          });
+          hasRenderedGoogleBtn.current = true;
         } catch (err) {
           console.warn('GSI render notice:', err);
         }
       }
     };
 
-    initGsi();
-    const timer = setTimeout(initGsi, 350);
-    return () => clearTimeout(timer);
-  }, [onLogin]);
+    if ((window as any).google?.accounts?.id) {
+      renderBtn();
+    } else {
+      let attempts = 0;
+      const interval = setInterval(() => {
+        attempts += 1;
+        if ((window as any).google?.accounts?.id) {
+          clearInterval(interval);
+          renderBtn();
+        } else if (attempts >= 30) {
+          clearInterval(interval);
+        }
+      }, 100);
+      return () => {
+        isCancelled = true;
+        clearInterval(interval);
+      };
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   // 60-Second OTP Countdown timer
   useEffect(() => {
@@ -288,8 +313,8 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   };
 
   return (
-    <div 
-      className="auth-canvas-overlay anim-fade-in" 
+    <div
+      className="auth-canvas-overlay anim-fade-in"
       onMouseMove={handleMouseMove}
       style={{
         '--mouse-x': `${mousePos.x}%`,
@@ -306,7 +331,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
           <div className="neural-3d-scene auth-3d-emblem">
             {/* Central Volumetric 3D Sphere */}
             <div className="volumetric-3d-sphere">
-              <Brain size={22} className="sphere-brain-hologram" />
+              <Brain size={18} className="sphere-brain-hologram" />
             </div>
 
             {/* Symmetrical 4-Plane Gyroscopic Solar System */}
@@ -413,9 +438,9 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 ))}
               </div>
 
-              <button 
-                type="button" 
-                className="auth-primary-submit-btn" 
+              <button
+                type="button"
+                className="auth-primary-submit-btn"
                 onClick={() => handleSubmit()}
                 disabled={isLoading || otpDigits.join('').length !== 6}
               >
@@ -438,15 +463,15 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 >
                   <RotateCw size={13} className={isLoading ? 'anim-spin' : ''} />
                   <span>
-                    {cooldown > 0 
-                      ? `Resend code in ${formatCooldown(cooldown)}` 
+                    {cooldown > 0
+                      ? `Resend code in ${formatCooldown(cooldown)}`
                       : 'Resend code'}
                   </span>
                 </button>
 
-                <button 
-                  type="button" 
-                  className="auth-back-link" 
+                <button
+                  type="button"
+                  className="auth-back-link"
                   onClick={() => switchMode('signup')}
                 >
                   <ArrowLeft size={13} />
@@ -465,8 +490,8 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 <p>
                   We have sent password recovery instructions to <strong>{email}</strong>
                 </p>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="auth-back-btn"
                   onClick={() => switchMode('signin')}
                 >
@@ -493,9 +518,9 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                     <label htmlFor="auth-forgot-email">Account email</label>
                     <div className="auth-input-wrapper">
                       <Mail size={15} className="auth-field-icon" />
-                      <input 
+                      <input
                         id="auth-forgot-email"
-                        type="email" 
+                        type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="name@company.com"
@@ -517,9 +542,9 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 </form>
 
                 <div className="auth-toggle-footer">
-                  <button 
-                    type="button" 
-                    className="auth-back-link" 
+                  <button
+                    type="button"
+                    className="auth-back-link"
                     onClick={() => switchMode('signin')}
                   >
                     <ArrowLeft size={13} />
@@ -555,9 +580,9 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   <label htmlFor="auth-name">Full name</label>
                   <div className="auth-input-wrapper">
                     <User size={15} className="auth-field-icon" />
-                    <input 
+                    <input
                       id="auth-name"
-                      type="text" 
+                      type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. Alex Johnson"
@@ -572,9 +597,9 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   <label htmlFor="auth-email">Email address</label>
                   <div className="auth-input-wrapper">
                     <Mail size={15} className="auth-field-icon" />
-                    <input 
+                    <input
                       id="auth-email"
-                      type="email" 
+                      type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="name@company.com"
@@ -588,9 +613,9 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   <div className="field-label-split">
                     <label htmlFor="auth-password">Password</label>
                     {authMode === 'signin' && (
-                      <button 
-                        type="button" 
-                        className="forgot-pass-link" 
+                      <button
+                        type="button"
+                        className="forgot-pass-link"
                         onClick={() => switchMode('forgot')}
                       >
                         Forgot password?
@@ -599,9 +624,9 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   </div>
                   <div className="auth-input-wrapper">
                     <Lock size={15} className="auth-field-icon" />
-                    <input 
+                    <input
                       id="auth-password"
-                      type={showPassword ? 'text' : 'password'} 
+                      type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter password"
@@ -611,8 +636,8 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                       onCut={preventClipboard}
                       required
                     />
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       className="password-toggle-btn"
                       onClick={() => setShowPassword(!showPassword)}
                       title={showPassword ? 'Hide password' : 'Show password'}
@@ -627,9 +652,9 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                   <label htmlFor="auth-confirm-password">Confirm password</label>
                   <div className="auth-input-wrapper">
                     <Lock size={15} className="auth-field-icon" />
-                    <input 
+                    <input
                       id="auth-confirm-password"
-                      type={showConfirmPassword ? 'text' : 'password'} 
+                      type={showConfirmPassword ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-enter password"
@@ -640,8 +665,8 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                       required={authMode === 'signup'}
                       tabIndex={authMode === 'signup' ? 0 : -1}
                     />
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       className="password-toggle-btn"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       title={showConfirmPassword ? 'Hide password' : 'Show password'}
@@ -668,27 +693,12 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
               </div>
 
               {/* Official Google Identity Button Container */}
-              <div className="auth-social-row" style={{ display: 'flex', justifyContent: 'center', minHeight: '44px' }}>
-                <div 
-                  id="google-signin-btn-container" 
-                  ref={googleBtnContainerRef} 
-                  style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
-                >
-                  <button 
-                    type="button" 
-                    className="auth-google-btn"
-                    onClick={handleCustomGoogleClick}
-                    disabled={isLoading}
-                  >
-                    <svg className="google-svg-icon" viewBox="0 0 24 24" width="17" height="17">
-                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.36 7.35 24 12 24z"/>
-                      <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
-                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.27 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-                    </svg>
-                    <span>Sign in with Google</span>
-                  </button>
-                </div>
+              <div className="auth-social-row" style={{ display: 'flex', justifyContent: 'center', minHeight: '44px', height: '44px' }}>
+                <div
+                  id="google-signin-btn-container"
+                  ref={googleBtnContainerRef}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'center', minHeight: '44px', height: '44px' }}
+                />
               </div>
 
               {/* Mode Toggle */}
@@ -696,8 +706,8 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
                 <span>
                   {authMode === 'signin' ? "Don't have an account?" : 'Already have an account?'}
                 </span>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="auth-toggle-btn"
                   onClick={() => switchMode(authMode === 'signin' ? 'signup' : 'signin')}
                 >
