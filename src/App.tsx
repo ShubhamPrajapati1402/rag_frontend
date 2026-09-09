@@ -8,7 +8,6 @@ import AuthModal from './components/Auth/AuthModal';
 import AcceptInviteModal from './components/Evaluation/AcceptInviteModal';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import SimpleModelModal from './components/Models/SimpleModelModal';
-import { useAnimatedFavicon } from './hooks/useAnimatedFavicon';
 import { chatApi } from './services/chatApi';
 import { authApi } from './services/authApi';
 import { DocumentItem, ChatSession, ThemeType, UserProfile } from './types';
@@ -43,10 +42,9 @@ function getInitialTabFromPath(): 'chat' | 'documents' | 'evaluation' {
 }
 
 function App() {
-  // Activate real-time animated gyroscopic solar system favicon in browser tab
-  useAnimatedFavicon();
-
-  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(() => {
+    return typeof document !== 'undefined' && document.cookie.includes('rag_logged_in=1');
+  });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
@@ -143,16 +141,15 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const hasSession = typeof document !== 'undefined' && document.cookie.includes('rag_logged_in=1');
+
+    if (!hasSession) {
+      setIsAuthenticated(false);
+      setIsAuthChecking(false);
+      return; // Zero network requests fired on unauthenticated visits
+    }
+
     const initAuth = async () => {
-      // Check if an active session indicator cookie exists
-      const hasSession = typeof document !== 'undefined' && document.cookie.includes('rag_logged_in=1');
-
-      if (!hasSession) {
-        setIsAuthenticated(false);
-        setIsAuthChecking(false);
-        return; // Zero network requests fired on unauthenticated visits
-      }
-
       try {
         const user = await authApi.getMe();
         if (user) {
@@ -223,15 +220,15 @@ function App() {
     }
   };
 
-  const handleLogin = (user: UserProfile) => {
+  const handleLogin = useCallback((user: UserProfile) => {
     document.cookie = 'rag_logged_in=1; path=/; max-age=2592000; SameSite=Lax';
     setUserProfile(user);
     setIsAuthenticated(true);
     loadSessions();
     loadDocuments();
-  };
+  }, [loadSessions, loadDocuments]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
       await authApi.logout();
     } catch (e) {
@@ -245,7 +242,7 @@ function App() {
     setDocuments([]);
     setCurrentSessionId('');
     window.history.pushState(null, '', '/');
-  };
+  }, []);
 
   const handleToggleTheme = () => {
     setTheme(prev => {

@@ -7,5 +7,8 @@ export default defineConfig({
   server: {
     port: 1001,
     strictPort: true,
+    watch: {
+      ignored: ['**/dist/**', '**/.git/**']
+    }
   }
 })
