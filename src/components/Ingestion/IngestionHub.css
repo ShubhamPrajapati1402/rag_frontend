@@ -894,3 +894,57 @@
 [data-theme="light"] .preview-text-block::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.15);
 }
+
+/* ==========================================================================
+   Mobile & Tablet Responsiveness for Ingestion Hub
+   ========================================================================== */
+@media (max-width: 768px) {
+  .ingestion-clean-root {
+    padding: 16px 12px;
+    height: calc(100vh - 50px);
+    height: calc(100dvh - 50px);
+  }
+
+  .ingestion-content-wrap {
+    gap: 16px;
+  }
+
+  .page-header h2 {
+    font-size: 20px;
+  }
+
+  .page-header p {
+    font-size: 13px;
+  }
+
+  .search-input-box {
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .table-top-toolbar {
+    padding: 8px 12px;
+  }
+
+  .dropzone-box {
+    padding: 24px 16px;
+  }
+}
+
+@media (max-width: 540px) {
+  .table-top-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .search-input-box {
+    max-width: 100%;
+  }
+
+  .tab-item-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+

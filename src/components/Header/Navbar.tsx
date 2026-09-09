@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, MessageSquare, FolderOpen, ShieldCheck } from 'lucide-react';
+import { Sun, Moon, MessageSquare, FolderOpen, ShieldCheck, PanelLeft } from 'lucide-react';
 import { ThemeType, UserProfile } from '../../types';
 import './Navbar.css';
 
@@ -10,6 +10,8 @@ interface NavbarProps {
   setActiveTab: (tab: 'chat' | 'documents' | 'evaluation') => void;
   docCount: number;
   userProfile?: UserProfile | null;
+  onToggleSidebar?: () => void;
+  isSidebarCollapsed?: boolean;
 }
 
 export default function Navbar({ 
@@ -18,12 +20,25 @@ export default function Navbar({
   activeTab, 
   setActiveTab, 
   docCount,
-  userProfile
+  userProfile,
+  onToggleSidebar,
+  isSidebarCollapsed
 }: NavbarProps) {
   return (
     <header className="chatgpt-top-header">
-      {/* Left: Navigation Tabs */}
+      {/* Left: Sidebar Toggle + Navigation Tabs */}
       <div className="header-left">
+        {onToggleSidebar && (
+          <button 
+            className={`navbar-sidebar-toggle-btn ${isSidebarCollapsed ? 'is-collapsed' : ''}`} 
+            onClick={onToggleSidebar}
+            title={isSidebarCollapsed ? "Open sidebar" : "Close sidebar"}
+            aria-label="Toggle navigation menu"
+          >
+            <PanelLeft size={18} />
+          </button>
+        )}
+
         <div className="header-tabs">
           <button 
             className={'tab-btn ' + (activeTab === 'chat' ? 'active' : '')}
@@ -37,7 +52,8 @@ export default function Navbar({
             onClick={() => setActiveTab('documents')}
           >
             <FolderOpen size={13} />
-            <span>Projects ({docCount})</span>
+            <span className="tab-label-text">Projects ({docCount})</span>
+            <span className="tab-label-short">Docs</span>
           </button>
 
           {userProfile?.is_superuser && (
@@ -46,7 +62,7 @@ export default function Navbar({
               onClick={() => setActiveTab('evaluation')}
             >
               <ShieldCheck size={13} className="text-indigo-400" />
-              <span>Benchmarks</span>
+              <span className="tab-label-text">Benchmarks</span>
               <span className="navbar-dev-pill">DEV</span>
             </button>
           )}
@@ -55,7 +71,7 @@ export default function Navbar({
 
       {/* Right: Theme Toggle */}
       <div className="header-right">
-        <button className="theme-btn" onClick={onToggleTheme} title="Toggle Theme">
+        <button className="theme-btn" onClick={onToggleTheme} title="Toggle Theme" aria-label="Toggle theme">
           {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
         </button>
       </div>

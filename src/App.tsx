@@ -8,6 +8,7 @@ import AuthModal from './components/Auth/AuthModal';
 import AcceptInviteModal from './components/Evaluation/AcceptInviteModal';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import SimpleModelModal from './components/Models/SimpleModelModal';
+import { useAnimatedFavicon } from './hooks/useAnimatedFavicon';
 import { chatApi } from './services/chatApi';
 import { authApi } from './services/authApi';
 import { DocumentItem, ChatSession, ThemeType, UserProfile } from './types';
@@ -42,18 +43,40 @@ function getInitialTabFromPath(): 'chat' | 'documents' | 'evaluation' {
 }
 
 function App() {
+  // Activate real-time animated gyroscopic solar system favicon in browser tab
+  useAnimatedFavicon();
+
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const [theme, setTheme] = useState<ThemeType>(getInitialTheme);
   const [activeTab, setActiveTab] = useState<'chat' | 'documents' | 'evaluation'>(getInitialTabFromPath);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return typeof window !== 'undefined' && window.innerWidth < 768;
+  });
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>(getSessionIdFromPath);
+
+  // Auto-close sidebar on mobile after navigating
+  const closeSidebarIfMobile = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsSidebarCollapsed(true);
+    }
+  };
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setIsSidebarCollapsed(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Simple Model & Key state
   const [selectedModel, setSelectedModel] = useState<string>(() => {
@@ -174,6 +197,7 @@ function App() {
 
   const handleTabSwitch = (tab: 'chat' | 'documents' | 'evaluation') => {
     setActiveTab(tab);
+    closeSidebarIfMobile();
     if (tab === 'evaluation') {
       window.history.pushState(null, '', '/developer/evaluation');
     } else if (tab === 'documents') {
@@ -223,12 +247,14 @@ function App() {
   const handleSelectSession = (id: string) => {
     setCurrentSessionId(id);
     setActiveTab('chat');
+    closeSidebarIfMobile();
     window.history.pushState(null, '', id ? ('/c/' + id) : '/');
   };
 
   const handleNewSession = () => {
     setCurrentSessionId('');
     setActiveTab('chat');
+    closeSidebarIfMobile();
     window.history.pushState(null, '', '/');
   };
 
@@ -297,6 +323,13 @@ function App() {
         }}
       />
 
+      {/* Mobile Drawer Backdrop */}
+      <div 
+        className={`sidebar-mobile-backdrop ${!isSidebarCollapsed ? 'active' : ''}`}
+        onClick={() => setIsSidebarCollapsed(true)}
+        aria-hidden="true"
+      />
+
       <div className={'app-workspace-container ' + (!isAuthenticated ? 'workspace-inert' : '')}>
         <Sidebar 
           chatSessions={chatSessions}
@@ -327,6 +360,8 @@ function App() {
             setActiveTab={handleTabSwitch}
             docCount={documents.length}
             userProfile={userProfile}
+            onToggleSidebar={() => setIsSidebarCollapsed(prev => !prev)}
+            isSidebarCollapsed={isSidebarCollapsed}
           />
 
           <div className="app-content-stage">
@@ -339,6 +374,12 @@ function App() {
                 onNavigateToIngestion={() => handleTabSwitch('documents')}
                 docCount={documents.length}
                 documents={documents}
+                onDocumentUploaded={(newDoc) => {
+                  setDocuments(prev => {
+                    if (prev.some(d => d.id === newDoc.id)) return prev;
+                    return [newDoc, ...prev];
+                  });
+                }}
                 onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
                 userProfile={userProfile}
                 selectedModel={selectedModel}

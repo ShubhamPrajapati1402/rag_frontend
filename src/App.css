@@ -1,6 +1,7 @@
 .app-root {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   position: relative;
   background-color: var(--bg-app, #0a0a0c);
@@ -11,6 +12,7 @@
   display: flex;
   flex-direction: row;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
   position: relative;
@@ -23,6 +25,8 @@
   flex-direction: column;
   flex: 1;
   height: 100vh;
+  height: 100dvh;
+  width: 100%;
   min-width: 0;
   overflow: hidden;
   position: relative;
@@ -32,8 +36,36 @@
 .main-content-scroll {
   display: flex;
   flex: 1;
-  height: calc(100vh - 54px);
+  height: calc(100vh - 52px);
+  height: calc(100dvh - 52px);
   min-height: 0;
+  width: 100%;
+  min-width: 0;
   overflow: hidden;
   position: relative;
+}
+
+/* Mobile Sidebar Backdrop Overlay */
+.sidebar-mobile-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar-mobile-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 990;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .sidebar-mobile-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }

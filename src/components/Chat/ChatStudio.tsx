@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -99,6 +99,7 @@ interface ChatStudioProps {
   docCount: number;
   documents?: DocumentItem[];
   onOpenCommandPalette: () => void;
+  onDocumentUploaded?: (doc: DocumentItem) => void;
   userProfile?: UserProfile | null;
   selectedModel?: string;
   customApiKey?: string;
@@ -155,6 +156,7 @@ export default function ChatStudio({
   docCount, 
   documents = [], 
   onOpenCommandPalette,
+  onDocumentUploaded,
   userProfile,
   selectedModel = 'inbuilt',
   customApiKey = '',
@@ -171,6 +173,8 @@ export default function ChatStudio({
   const [docMentionQuery, setDocMentionQuery] = useState<string>('');
   const [docMentionIndex, setDocMentionIndex] = useState<number>(0);
   const mentionDropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingDocStatus, setUploadingDocStatus] = useState<{ name: string; percent: number } | null>(null);
 
   // Voice STT & TTS States
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -698,8 +702,83 @@ export default function ChatStudio({
     inputRef.current?.focus();
   };
 
-  const handleRemoveTag = (docId: number) => {
-    setTaggedDocuments(prev => prev.filter(d => d.id !== docId));
+  const handleRemoveTag = (docId: string | number) => {
+    setTaggedDocuments(prev => prev.filter(d => String(d.id) !== String(docId)));
+  };
+
+  const handleDirectFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.name.split('.').pop()?.toUpperCase() || 'TXT';
+      let format = ext;
+      if (ext === 'XLSX' || ext === 'XLS') format = 'Excel';
+
+      const sizeKB = file.size / 1024;
+      const sizeStr = sizeKB > 1024 
+        ? `${(sizeKB / 1024).toFixed(1)} MB` 
+        : sizeKB < 0.1 
+          ? `${file.size} B` 
+          : `${sizeKB.toFixed(1)} KB`;
+
+      setUploadingDocStatus({ name: file.name, percent: 0 });
+
+      try {
+        await chatApi.streamUpload({
+          file,
+          onProgress: (p) => {
+            setUploadingDocStatus({ name: file.name, percent: p.percent });
+          },
+          onDone: (data) => {
+            setUploadingDocStatus(null);
+            const docObj = data?.document || data?.data || data || {};
+            const finalSummary = docObj.summary || docObj.description || `Semantic boundary index containing chunks for ${file.name}.`;
+            const finalPreview = docObj.previewText || docObj.preview_text || docObj.preview || docObj.content || docObj.text || docObj.sample || docObj.sample_text || 'All structural text regions and tokens indexed inside vector space.';
+
+            const docId = docObj.document_id !== undefined && docObj.document_id !== null
+              ? String(docObj.document_id)
+              : String(docObj.id || docObj.doc_id || `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+
+            const newDoc: DocumentItem = {
+              id: docId,
+              name: docObj.name || docObj.filename || docObj.file_name || file.name,
+              format: docObj.format || docObj.fileType || docObj.file_type || format,
+              size: docObj.size || sizeStr,
+              status: 'ready',
+              date: 'Just now',
+              summary: String(finalSummary),
+              previewText: String(finalPreview)
+            };
+
+            if (onDocumentUploaded) {
+              onDocumentUploaded(newDoc);
+            }
+
+            // Auto-tag the newly uploaded document in the input bar so user can immediately query it
+            setTaggedDocuments(prev => {
+              if (prev.some(d => d.id === newDoc.id)) return prev;
+              return [...prev, newDoc];
+            });
+            inputRef.current?.focus();
+          },
+          onError: (err) => {
+            console.error('Direct upload failed:', err);
+            setUploadingDocStatus(null);
+            setErrorMessage(err?.message || `Failed to upload ${file.name}`);
+          }
+        });
+      } catch (err: any) {
+        console.error('Direct upload exception:', err);
+        setUploadingDocStatus(null);
+        setErrorMessage(err?.message || `Failed to upload ${file.name}`);
+      }
+    }
+
+    if (e.target) {
+      e.target.value = '';
+    }
   };
 
   const handleSend = async (e?: React.FormEvent | null, overridePrompt?: string) => {
@@ -995,9 +1074,9 @@ export default function ChatStudio({
               {msg.type === 'user' ? (
                 <div className="user-message-group anim-slide-up">
                   <div className="user-message-bubble">
-                    {(msg as any).taggedDocs && (msg as any).taggedDocs.length > 0 && (
+                    {msg.taggedDocs && msg.taggedDocs.length > 0 && (
                       <div className="user-attached-docs-row">
-                        {(msg as any).taggedDocs.map((docName: string, idx: number) => (
+                        {msg.taggedDocs.map((docName: string, idx: number) => (
                           <span key={idx} className="user-attached-doc-badge">
                             <FileText size={11} className="text-indigo-400" />
                             <span className="user-attached-doc-text">{docName}</span>
@@ -1213,21 +1292,37 @@ export default function ChatStudio({
 
         {/* ChatGPT Input Bar with Inside Attachment Chips */}
         <form className="chatgpt-input-bar anim-slide-up" onSubmit={(e) => handleSend(e)}>
+          <input 
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            accept=".pdf,.docx,.doc,.txt,.csv,.xlsx,.xls,.md,.json"
+            multiple
+            onChange={handleDirectFileUpload}
+          />
           <button
             type="button"
             className="input-attach-btn"
-            onClick={() => {
-              if (documents.length > 0) {
-                setIsDocMentionOpen(prev => !prev);
-                setDocMentionQuery('');
-              } else {
-                onNavigateToIngestion();
-              }
-            }}
-            data-tooltip="Tag Document (@)"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isStreaming || !!uploadingDocStatus}
+            data-tooltip="Upload document"
           >
-            <Plus size={18} />
+            {uploadingDocStatus ? (
+              <Loader2 size={17} className="animate-spin text-indigo-400" />
+            ) : (
+              <Plus size={18} />
+            )}
           </button>
+
+          {/* Uploading In-Progress Chip */}
+          {uploadingDocStatus && (
+            <div className="input-inline-doc-chip anim-scale-in" style={{ borderColor: 'rgba(99, 102, 241, 0.5)' }}>
+              <Loader2 size={12} className="animate-spin text-indigo-400" />
+              <span className="input-inline-doc-name" style={{ maxWidth: '140px' }}>
+                {uploadingDocStatus.name} ({uploadingDocStatus.percent}%)
+              </span>
+            </div>
+          )}
 
           {/* Inline Tagged Document Chips (ChatGPT Single-Row Style) */}
           {taggedDocuments.map(doc => (
