@@ -84,6 +84,7 @@ export const voiceApi = {
   async transcribeAudio(audioBlob: Blob): Promise<string> {
     const formData = new FormData();
     const filename = audioBlob.type.includes('webm') ? 'audio.webm' : 'audio.wav';
+    formData.append('file', audioBlob, filename);
     formData.append('audio', audioBlob, filename);
 
     const res = await fetch(BASE_URL + '/api/v1/voice/stt', {
@@ -152,6 +153,6 @@ export const voiceApi = {
     const params = new URLSearchParams({ text: cleaned });
     if (voice) params.append('voice', voice);
     if (rate) params.append('rate', rate);
-    return `${BASE_URL}/api/v1/voice/stream?${params.toString()}`;
+    return `${BASE_URL}/api/v1/voice/tts?${params.toString()}`;
   },
 };
